@@ -16,3 +16,18 @@ jobs:
         run: cargo test
       - name: Offline synthetic test
         run: cargo run --release -- --ohlc data/ohlc.csv --signals data/signals.csv --out results/demo --on-close
+      - name: Strict Pine adapter demo
+        run: |
+          python3 tools/pine_bridge_ema.py --pine data/ema_example.pine --ohlc data/ohlc.csv --out results/ema_signals.csv
+          cargo run --release -- --ohlc data/ohlc.csv --signals results/ema_signals.csv --out results/ema --on-close
+      - name: Validate result files
+        run: |
+          python3 - <<'PY'
+          import json,csv
+          a=json.load(open('results/demo_summary.json'))
+          assert a['bars']==8
+          assert a['closed_trades']==2
+          assert a['tv_parity_verified'] is False
+          with open('results/demo_trades.csv') as f: assert len(list(csv.DictReader(f))) == 2
+          print('MVP smoke checks OK')
+          PY

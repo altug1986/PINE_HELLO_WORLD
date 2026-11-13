@@ -1,0 +1,10 @@
+//@version=6
+strategy("EMA demonstrator", overlay=true, process_orders_on_close=true)
+fast = ta.ema(close, 2)
+slow = ta.ema(close, 4)
+longSignal = ta.crossover(fast, slow)
+exitSignal = ta.crossunder(fast, slow)
+if longSignal
+    strategy.entry("L", strategy.long)
+if exitSignal
+    strategy.close("L")
