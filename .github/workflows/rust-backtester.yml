@@ -1,0 +1,18 @@
+name: rust-backtester
+on:
+  push:
+    branches: [tw-rust-backtester-mvp]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust-backtester
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Rust tests
+        run: cargo test
+      - name: Offline synthetic test
+        run: cargo run --release -- --ohlc data/ohlc.csv --signals data/signals.csv --out results/demo --on-close
