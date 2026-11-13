@@ -20,6 +20,18 @@ jobs:
         run: |
           python3 tools/pine_bridge_ema.py --pine data/ema_example.pine --ohlc data/ohlc.csv --out results/ema_signals.csv
           cargo run --release -- --ohlc data/ohlc.csv --signals results/ema_signals.csv --out results/ema --on-close
+      - name: Cached fast-sync smoke test
+        run: |
+          python3 tools/fast_sync.py --ohlc data/ohlc.csv --signals data/signals.csv --out results/fast --on-close
+          python3 - <<'PY'
+          import json
+          d=json.load(open("results/fast_sync.json"))
+          assert d["status"] == "NO_REFERENCE"
+          assert d["engine_summary"]["bars"] == 8
+          assert d["tv_full_parity_claim"] is False
+          assert d["observed_bars_per_second"] > 0
+          print("Fast-sync runner passes; no TV parity asserted.")
+          PY
       - name: Validate result files
         run: |
           python3 - <<'PY'
