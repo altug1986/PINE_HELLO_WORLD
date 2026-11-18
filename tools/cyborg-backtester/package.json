@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "pinets": "0.13.1"
+  },
+  "name": "cyborg-backtester",
+  "version": "0.1.0",
+  "private": true
+}

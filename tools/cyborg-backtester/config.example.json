@@ -1,0 +1,28 @@
+{
+  "pine": "strategy.pine",
+  "symbol": "EXAMPLE:DEMOUSDT",
+  "timeframe": "6",
+  "start": "2025-01-01T00:00:00Z",
+  "end": "2025-02-01T00:00:00Z",
+  "chart_timezone": "Europe/Istanbul",
+  "symbols": {
+    "EXAMPLE:DEMOUSDT": {
+      "mintick": 0.01,
+      "mincontract": 0.0001,
+      "pointvalue": 1,
+      "currency": "USDT",
+      "basecurrency": "DEMO",
+      "timezone": "UTC"
+    }
+  },
+  "feeds": [
+    {
+      "symbol": "EXAMPLE:DEMOUSDT",
+      "timeframe": "1",
+      "path": "DEMOUSDT_1m.csv",
+      "timezone": "UTC"
+    }
+  ],
+  "inputs": {},
+  "properties": {}
+}

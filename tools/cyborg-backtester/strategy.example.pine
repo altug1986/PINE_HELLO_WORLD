@@ -1,0 +1,17 @@
+//@version=6
+strategy("CYBORG RSI Example", initial_capital=500, pyramiding=0,
+     commission_type=strategy.commission.percent, commission_value=0.04,
+     slippage=1, process_orders_on_close=false, margin_long=0, margin_short=0)
+
+float nominal = input.float(250, "Entry notional", minval=1)
+int period = input.int(14, "RSI length", minval=2)
+float rsi = ta.rsi(close, period)
+bool buy = ta.crossover(rsi, 30)
+bool sell = ta.crossunder(rsi, 65)
+float qty = math.floor(nominal / close / syminfo.mincontract) * syminfo.mincontract
+
+if barstate.isconfirmed
+    if strategy.position_size > 0 and sell
+        strategy.close("L")
+    else if strategy.position_size == 0 and buy and qty > 0
+        strategy.entry("L", strategy.long, qty=qty)
