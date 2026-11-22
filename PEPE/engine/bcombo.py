@@ -1,0 +1,7 @@
+exec(open('bscan2.py').read().split("rec('BAZ62',{},build3())")[0])
+nz=lambda x,v:np.nan_to_num(x,nan=v)
+A1,D1=nz(BT[1440]['adx'],0),nz(BT[1440]['di'],0);A6,D6=nz(BT[60]['adx'],0),nz(BT[60]['di'],0)
+pmM=vstate(C,gM&(mM>=3),gM&(mM<=-3),0.,0.,0,F,F,12);fillM=np.where(A1>30,np.sign(D1),pmM)
+cross=(A6>30)&(lag(A6,1)<=30);ov=vstate(C,cross&(D6>0),cross&(D6<0),0.,0.,48,F,F,0)
+rec('BAZ62',{},build3());rec('G3',{},build3(fill=fillM));rec('G5',{},build3(over=ov));rec('G3+G5',{},build3(fill=fillM,over=ov))
+D=pd.DataFrame(rows);pd.set_option('display.width',260);print(D[['h','net','pf','n','q','p98','Wsum','Ical','Ocal','Inet','Onet','medM','posm']].round(2).to_string(index=False))

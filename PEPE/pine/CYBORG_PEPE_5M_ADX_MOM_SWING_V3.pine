@@ -1,0 +1,136 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════
+// CYBORG | 1000PEPEUSDT.P 5M | ADX-MOMENTUM SWING V3 — 2 MOTOR | LONG + SHORT | FLAT YOK
+// ───────────────────────────────────────────────────────────────────
+// REV LOG
+//  V1     : 30M ADX>20, 5M ADX>25, 4 bar momentum ±%1, ters sinyalde dönüş
+//  V2     : [REV-01..05] 30M ADX>28, 5M ADX>20, mom %3, adx5>adx5[12], min hold 24 bar
+//           TV: 209 işlem | Net 4860$ | PF ~2.07  (motor 208/209 giriş eşleşti)
+//  V3     : [REV-06] MOTOR B eklendi (OR oylama) — 4 saatlik swing momentum:
+//                    30M ADX>25  ve  adx5 > adx5[6]  ve  48 bar momentum ±%2.5
+//           Motor A (V2 patlama motoru) aynen korunur. LONG = A_long OR B_long.
+//           Min hold 24 bar her iki motor için ortak.
+// SL / TP / TRAILING YOK — çıkış yalnızca ters sinyal (always-in swing)
+// ───────────────────────────────────────────────────────────────────
+// Araştırma motoru (1m OHLC 2023-05-05 → 2026-11-19, fixed 500$, %0.04, 1 tick):
+//   V2 : Net 4881$ | PF 2.07 | 209 işlem  | DD P98 422$ | MaxDD 560$ | OOS net 1519$
+//   V3 : Net 4736$ | PF 1.36 | 1152 işlem | DD P98 258$ | MaxDD 552$ | OOS net 1728$
+// V3 TV Strategy Tester'da DOĞRULANMADI — doğrula.
+// ═══════════════════════════════════════════════════════════════════
+strategy("CYBORG | PEPE 5M ADX-MOM SWING V3",
+     overlay = true,
+     initial_capital = 10000,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 0,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2000)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. PARAMETRELER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grp1 = "1. ADX"
+diLen  = input.int(14, "DI Length", minval = 2, group = grp1)
+adxLen = input.int(14, "ADX Smoothing", minval = 2, group = grp1)
+
+grp2 = "2. MOTOR A — PATLAMA (V2)"
+aAdx30Min = input.float(28.0, "A: 30M ADX Minimum", group = grp2)
+aAdx5Min  = input.float(20.0, "A: 5M ADX Minimum", group = grp2)
+aRiseLen  = input.int(12, "A: 5M ADX Yükselme Lookback", minval = 1, group = grp2)
+aLookback = input.int(4, "A: Momentum Bar", minval = 1, group = grp2)
+aMomLimit = input.float(3.0, "A: Momentum Eşiği %", minval = 0.1, step = 0.25, group = grp2)
+
+grp3 = "3. MOTOR B — 4H SWING"                                               // [REV-06]
+bAdx30Min = input.float(25.0, "B: 30M ADX Minimum", group = grp3)            // [REV-06]
+bRiseLen  = input.int(6, "B: 5M ADX Yükselme Lookback", minval = 1, group = grp3)  // [REV-06]
+bLookback = input.int(48, "B: Momentum Bar", minval = 1, group = grp3)       // [REV-06]
+bMomLimit = input.float(2.5, "B: Momentum Eşiği %", minval = 0.1, step = 0.25, group = grp3)  // [REV-06]
+
+grp4 = "4. DÖNÜŞ"
+minHold = input.int(24, "Min Pozisyon Süresi (bar)", minval = 0, group = grp4)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TIMEFRAME GUARD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. ADX
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_adx(int diLength, int smoothing) =>
+    [plusDI, minusDI, adxValue] = ta.dmi(diLength, smoothing)
+    adxValue
+
+adx5 = f_adx(diLen, adxLen)
+
+// Son tamamlanmış 30M mumun ADX değeri — repaint yok
+adx30 = request.security(
+     syminfo.tickerid,
+     "30",
+     f_adx(diLen, adxLen)[1],
+     gaps = barmerge.gaps_off,
+     lookahead = barmerge.lookahead_on)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. MOMENTUM
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+momA = na(close[aLookback]) ? na : (close / close[aLookback] - 1.0) * 100.0
+momB = na(close[bLookback]) ? na : (close / close[bLookback] - 1.0) * 100.0  // [REV-06]
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. MOTOR A — PATLAMA (V2 aynen)
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+aGate = not na(adx5) and not na(adx30) and not na(adx5[aRiseLen]) and
+     adx30 > aAdx30Min and adx5 > aAdx5Min and adx5 > adx5[aRiseLen]
+aLong  = aGate and not na(momA) and momA >= aMomLimit
+aShort = aGate and not na(momA) and momA <= -aMomLimit
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. MOTOR B — 4H SWING                                              [REV-06]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bGate = not na(adx5) and not na(adx30) and not na(adx5[bRiseLen]) and
+     adx30 > bAdx30Min and adx5 > adx5[bRiseLen]
+bLong  = bGate and not na(momB) and momB >= bMomLimit
+bShort = bGate and not na(momB) and momB <= -bMomLimit
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7. OY + MIN HOLD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+longState  = aLong or bLong                                                  // [REV-06]
+shortState = aShort or bShort                                                // [REV-06]
+
+barsInPos = strategy.position_size != 0 ? bar_index - strategy.opentrades.entry_bar_index(strategy.opentrades - 1) : 0
+canFlip   = strategy.position_size == 0 or barsInPos >= minHold
+
+longSignal  = barstate.isconfirmed and longState and strategy.position_size <= 0 and canFlip
+shortSignal = barstate.isconfirmed and shortState and strategy.position_size >= 0 and canFlip
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 8. LONG / SHORT REVERSAL — SL/TP/TRAIL YOK
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if longSignal
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG")
+else if shortSignal
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 9. GÖRSEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(longSignal, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = aLong ? color.lime : color.teal, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(shortSignal, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = aShort ? color.red : color.maroon, text = "SHORT", textcolor = color.white, size = size.tiny)
+
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 93) : strategy.position_size < 0 ? color.new(color.red, 93) : na)
+
+plot(adx5, "ADX 5M", display = display.data_window)
+plot(adx30, "ADX 30M", display = display.data_window)
+plot(momA, "Mom A (4 bar) %", display = display.data_window)
+plot(momB, "Mom B (48 bar) %", display = display.data_window)
+plot(barsInPos, "Bars In Position", display = display.data_window)

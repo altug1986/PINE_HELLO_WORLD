@@ -1,0 +1,515 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════
+// CYBORG | 1000PEPEUSDT.P 5M | SWING V11.1 — V10.1 + OPEN INTEREST (TÜKENİŞ KİLİDİ + LİKİDASYON DÖNÜŞÜ)
+// ───────────────────────────────────────────────────────────────────
+// REV LOG
+//  V1     : 30M ADX>20, 5M ADX>25, 4 bar mom ±%1, ters sinyalde dönüş
+//  V2     : 30M ADX>28, 5M ADX>20, mom %3, adx5>adx5[12], min hold 24  (TV: 209 işlem, net 4860$)
+//  V3     : V2 (Motor A) OR Motor B [30M ADX>25, adx5>adx5[6], 48 bar mom ±%2.5]
+//  V4     : [REV-07] ÇARPIŞMA — V2 ve V3 iki SANAL always-in motor olarak ayrı ayrı
+//                    işletilir (her biri kendi min hold 24 sayacıyla).
+//                    Gerçek pozisyon = sign(V2 + V3):
+//                      ikisi LONG  → LONG 500$     (ENTER-LONG)
+//                      ikisi SHORT → SHORT 500$    (ENTER-SHORT)
+//                      ayrışma     → FLAT          (EXIT-ALL)
+//           TV: 681 işlem | Net 4731$ | motor 677/681 eşleşti
+//  V6     : [REV-10] RSI UÇ motoru (sanal): RSI14 < 10 → LONG, > 90 → SHORT;
+//                    çıkış RSI 50'yi geçince / kapanışta −%8 / 144 bar.
+//                    Sanal RSI pozisyonu varken gerçek pozisyonu O belirler (öncelik),
+//                    yokken V4 çarpışma hedefi geçerli.
+// Kalıcı stop / TP / trailing yok (RSI motorunun kendi %8 kapanış stopu hariç)
+// ───────────────────────────────────────────────────────────────────
+// Araştırma motoru (1m OHLC 2023-05-05 → 2026-11-19, 500$ sabit, %0.04, 1 tick, basit getiri):
+//   V4 : Net 4751$ | PF 1.65 | 681 işlem | Calmar 3.75 | DD P98 273$ | MaxDD 358$ | net/MaxDD 13.3
+//   V6 : Net 6172$ | PF 1.81 | 757 işlem | Calmar 4.87 | DD P98 273$ | MaxDD 358$ | net/MaxDD 17.3
+//        OOS(2025-05-20→) net 2167$ PF 2.17 Calmar 6.72 | poz. ay %84
+//           TV: 757 işlem | Net 6142$ (%1228)
+//  V6.2   : [REV-15] ORTA REJİM MOTORU (sanal, always-in): 30M ADX > 18 ve adx5 > adx5[3] iken
+//                    24 bar (2 saat) momentum ±%3 → LONG/SHORT; kendi min hold 12 bar.
+//                    RSI-UÇ ve ÇARPIŞMA boşken pozisyonu taşır (V6'nın %42 FLAT süresini doldurur).
+//           [REV-14] initial_capital 500, margin 0 (şablon)
+//   V6.2 (sabit 500$, motor): Net 6748$ (%1350) | 1180 işlem | PF 1.52 | DD P98 257$ | OOS Calmar 7.23
+//        V6'ya göre: son 30g +10→+57$ | 2024-08 penceresi −209→−10$ | en kötü ay −227→−157$
+//  V6.3   : [REV-16] BTC 1D TREND DOLGU: RSI-UÇ ve ÇARPIŞMA boşken, BTCUSDT.P günlük ADX(14) > 30 ise
+//                    PEPE pozisyonu BTC günlük DI yönünde; değilse ORTA REJİM motoru.
+//                    BTC değerleri son TAMAMLANMIŞ günlük mumdan (repaint yok).
+//   V6.3 (motor, BTC verisi 2026-11-15'e kadar): Net 7506$ (%1501) | 1048 işlem | PF 1.64 | DD P98 241$
+//        V6.2'ye göre: kalite 18.1→21.8 | IS Calmar 5.68→6.76 | OOS Calmar 7.23→4.98 (ZAYIF) | OOS net ≈
+//        Sıkıntılı 30g toplam −358→−534$ (ZAYIF) — ADAY: kazanç ağırlıkla 2023-25, TV ile doğrula.
+//           TV: 1048 işlem | Net 7808$ (%1562) | motor 1013/1048 eşleşti
+//  V8     : [REV-17] Öncelik zinciri (IS-only genetik seçim, 14 motor kütüphanesinden):
+//                    RSI14-UÇ > RSI7-MİKRO > ÇARPIŞMA > BTC 4H TREND > BTC 1H ADX-FLIP > ORTA REJİM
+//           [REV-18] RSI7-MİKRO: RSI7 < 5 LONG / > 95 SHORT, kapanışta +%1 TP / −%2 SL / 24 bar
+//           [REV-19] BTC 4H TREND: BTCUSDT.P 4H ADX > 30 → BTC 4H DI yönü (V6.3'teki 1D dolgunun yerine)
+//           [REV-20] BTC 1H ADX-FLIP: BTC 1H ADX 30'u yukarı kesince DI yönünde 48 bar
+//   V8 (motor, sabit 500$): Net 7905$ (%1581) | 1198 işlem | PF 1.66 | Sharpe 2.65 | DD P98 226$ | MaxDD 386$
+//        Zayıf 20×50g pencere toplamı: V6.3 334$ → V8 1212$ | OOS Calmar 4.98 → 5.32
+//           TV: 1196 işlem | Net 7984$ (%1597) | PF 1.67
+//  V9     : [REV-22] MİKRO KÂR AL / GERİ GİR (çekirdek yön değişmeden):
+//                    LONG iken RSI7 ≥ 90 → EXIT-ALL (kâr al); SHORT iken RSI7 ≤ 10 → EXIT-ALL.
+//                    Geri giriş (çekirdek yönde): RSI7 ≤ 60 (short için ≥ 40) VEYA 12 bar VEYA
+//                    fiyat çıkış seviyesinden %3 devam ederse. Çekirdek yön değişirse hemen yeni yön.
+//   V9 (motor, sabit 500$): Net 8018$ (%1604) | 1870 işlem | PF 1.51 | MaxDD 370$ | DD P99 245$
+//        OOS PF 1.49 / Calmar 5.47 | MAE max %32.5 (V8 %28.7) — işlem sayısı ↑, işlem başı edge ↓
+//           TV: 1867 işlem | Net 8104$ (%1621) | PF 1.52 | MAE max %32.5
+//  V10    : [REV-23] KARŞI POZİSYON (ters kalınca): ana pozisyon giriş fiyatından
+//                    1H ATR% × 4.5 kadar ters giderse → karşı yöne dön. Karşı pozisyon
+//                    %3 zarar ederse (fiyat ana yöne döndü) VEYA 144 bar dolarsa → ana yöne geri dön.
+//                    Ana sinyal yön değiştirirse hemen yeni ana yön.
+//   V10 (motor, sabit 500$): Net 8203$ (%1641) | 1951 işlem | PF 1.50 | Sharpe 2.77 | Calmar 8.01
+//        DD P95/P99/max 174/209/289$ | MAE P95/P99/max %8.4/%13.3/%22.8 (V9 %9.3/%14.5/%32.5)
+//        OOS PF 1.43 / Calmar 4.90 | MC zarar olasılığı 0 | monkey: 4000 rastgele sistemin hiçbiri geçemedi
+//           TV: 1949 işlem | Net 8240$ (%1648) | PF 1.51
+//  V10.1  : [REV-24] POZİTİF SHARPE SÜZGECİ (hafif): fiyatın son 864 bar (3 gün) Sharpe'ı
+//                    pozisyon yönünde ≥ 2.0 ise mikro kâr alma YAPILMAZ — güçlü harekette pozisyon taşınır.
+//                    Sistem hiçbir zaman kapatılmaz; sadece kâr kesme hamlesi süzülür.
+//   V10.1 (motor, sabit 500$): Net 8332$ (%1666) | 1900 işlem | PF 1.53 | Sharpe 2.81 | MaxDD 287$
+//        OOS net 2192$ / PF 1.45 / Calmar 5.12 (V10 2127$ / 1.43 / 4.90) | süzgeç ızgarasının 20/25'i V10 netini geçti
+//           TV: 1898 işlem | Net 8368$ (%1674) | PF 1.53
+//  V11    : [REV-25] OI TÜKENİŞ KİLİDİ: son 6 barda fiyat pozisyon yönünde ≥ %3 VE OI ≤ −%2
+//                    (yükseliş/düşüş pozisyon kapanışıyla besleniyor, yakıt bitiyor) → kâr kilitle (EXIT-ALL),
+//                    geri giriş mikro kâr al kurallarıyla.
+//           [REV-26] LİKİDASYON DÖNÜŞ MOTORU (en üst öncelik): 6 barda fiyat ≤ −%10 VE OI ≤ −%5 → LONG;
+//                    fiyat ≥ +%10 VE OI ≤ −%5 → SHORT. Çıkış: RSI7 60/40, kapanış stop %8, 72 bar.
+//           OI = BINANCE:1000PEPEUSDT.P_OI (kontrat adedi), bir bar gecikmeli (sadece kapanmış bar).
+//   V11 (motor, sabit 500$): Net 8594$ (%1719) | 2102 işlem | PF 1.51 | Sharpe 2.90 | Calmar 8.83
+//        DD P95/P99/max 167/196/275$ | OOS net 2237$ / Calmar 5.42 | MC zarar olasılığı 0 | monkey geçen yok
+//           TV: 2092 işlem | Net 8567$ (%1713) | PF 1.51
+//  V11.1  : [REV-27] LİKİDASYON DÖNÜŞ MOTORU genişletildi: 6 barda fiyat ∓%4 VE OI −%4 (V11: ∓%10 / −%5)
+//                    çıkış sıkılaştı: kapanış stop %5 (8), 48 bar (72), RSI7 55/45 (60/40).
+//                    3.5 yılda ~100 dönüş (V11: 16). Plato: fiyat 4/5/6 × RSI 55/60 hepsi V11'i geçiyor.
+//   V11.1 (motor, sabit 500$): Net 8817$ (%1763) | 2138 işlem | PF 1.53 | Sharpe 2.95 | Sortino 7.42
+//        Ulcer 79.0 (80.1) | UPI 31.5 (30.3) | OOS net 2326$ / Calmar 6.05 (5.42) | MC zarar olasılığı 0
+// V11.1 TV Strategy Tester'da DOĞRULANMADI — doğrula. OI sembolü yüklenmezse sistem V10.1 gibi çalışır.
+// ═══════════════════════════════════════════════════════════════════
+strategy("CYBORG | PEPE 5M SWING V11.1",
+     overlay = true,
+     initial_capital = 500,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 0,
+     margin_long = 0,
+     margin_short = 0,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2000)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. PARAMETRELER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grp1 = "1. ADX"
+diLen  = input.int(14, "DI Length", minval = 2, group = grp1)
+adxLen = input.int(14, "ADX Smoothing", minval = 2, group = grp1)
+
+grp2 = "2. MOTOR A — PATLAMA (V2)"
+aAdx30Min = input.float(28.0, "A: 30M ADX Minimum", group = grp2)
+aAdx5Min  = input.float(20.0, "A: 5M ADX Minimum", group = grp2)
+aRiseLen  = input.int(12, "A: 5M ADX Yükselme Lookback", minval = 1, group = grp2)
+aLookback = input.int(4, "A: Momentum Bar", minval = 1, group = grp2)
+aMomLimit = input.float(3.0, "A: Momentum Eşiği %", minval = 0.1, step = 0.25, group = grp2)
+
+grp3 = "3. MOTOR B — 4H SWING (V3 eki)"
+bAdx30Min = input.float(25.0, "B: 30M ADX Minimum", group = grp3)
+bRiseLen  = input.int(6, "B: 5M ADX Yükselme Lookback", minval = 1, group = grp3)
+bLookback = input.int(48, "B: Momentum Bar", minval = 1, group = grp3)
+bMomLimit = input.float(2.5, "B: Momentum Eşiği %", minval = 0.1, step = 0.25, group = grp3)
+
+grp5 = "5. RSI UÇ MOTORU"                                                     // [REV-10]
+rsiLen     = input.int(14, "RSI Length", minval = 2, group = grp5)
+rsiLo      = input.float(10.0, "RSI Uç Seviye (long <, short > 100-x)", group = grp5)
+rsiExit    = input.float(50.0, "RSI Çıkış Seviyesi", group = grp5)
+rsiSL      = input.float(8.0, "RSI Kapanış Stopu %", minval = 0.1, group = grp5)
+rsiMaxBars = input.int(144, "RSI Maks Bar", minval = 1, group = grp5)
+
+grp6 = "6. ORTA REJİM MOTORU"                                                 // [REV-15]
+mLookback = input.int(24, "M: Momentum Bar", minval = 1, group = grp6)
+mMomLimit = input.float(3.0, "M: Momentum Eşiği %", minval = 0.1, step = 0.25, group = grp6)
+mAdx30Min = input.float(18.0, "M: 30M ADX Minimum", group = grp6)
+mRiseLen  = input.int(3, "M: 5M ADX Yükselme Lookback", minval = 1, group = grp6)
+mHold     = input.int(12, "M: Min Sanal Pozisyon Süresi (bar)", minval = 0, group = grp6)
+
+grp7 = "7. BTC MOTORLARI"                                                     // [REV-19/20]
+btcSym     = input.symbol("BINANCE:BTCUSDT.P", "BTC Sembol", group = grp7)
+btcTrendTf = input.timeframe("240", "BTC Trend Zaman Dilimi", group = grp7)
+btcAdxMin  = input.float(30.0, "BTC Trend ADX Eşiği", group = grp7)
+btcFlipTf  = input.timeframe("60", "BTC Flip Zaman Dilimi", group = grp7)
+btcFlipAdx = input.float(30.0, "BTC Flip ADX Kesişim", group = grp7)
+btcFlipBars = input.int(48, "BTC Flip Süre (bar)", minval = 1, group = grp7)
+
+grp8 = "8. RSI7 MİKRO MOTOR"                                                  // [REV-18]
+mikLen  = input.int(7, "Mikro RSI Length", minval = 2, group = grp8)
+mikLo   = input.float(5.0, "Mikro RSI Uç", group = grp8)
+mikTP   = input.float(1.0, "Mikro TP % (kapanış)", minval = 0.1, group = grp8)
+mikSL   = input.float(2.0, "Mikro SL % (kapanış)", minval = 0.1, group = grp8)
+mikBars = input.int(24, "Mikro Maks Bar", minval = 1, group = grp8)
+
+grp10 = "10. MİKRO KÂR AL / GERİ GİR"                                         // [REV-22]
+trimLen  = input.int(7, "Mikro RSI Length", minval = 2, group = grp10)
+trimX    = input.float(90.0, "Kâr Al RSI (long ≥ x, short ≤ 100-x)", group = grp10)
+trimY    = input.float(60.0, "Geri Gir RSI (long ≤ y, short ≥ 100-y)", group = grp10)
+trimBars = input.int(12, "Geri Gir Maks Bar", minval = 1, group = grp10)
+trimCont = input.float(3.0, "Devam Halinde Geri Gir %", minval = 0.1, group = grp10)
+
+grp11 = "11. KARŞI POZİSYON"                                                 // [REV-23]
+ahfK      = input.float(4.5, "Ters Eşik (1H ATR% ×)", minval = 0.5, step = 0.5, group = grp11)
+ahfSL     = input.float(3.0, "Karşı Poz Zarar Sınırı %", minval = 0.1, group = grp11)
+ahfBars   = input.int(144, "Karşı Poz Maks Bar", minval = 1, group = grp11)
+ahfAtrLen = input.int(14, "1H ATR Length", minval = 2, group = grp11)
+
+grp12 = "12. POZİTİF SHARPE SÜZGECİ"                                          // [REV-24]
+shLen = input.int(864, "Fiyat Sharpe Penceresi (bar)", minval = 20, group = grp12)
+shMax = input.float(2.0, "Bu Sharpe'ın Üstünde Mikro Kâr Alma Yok", step = 0.25, group = grp12)
+
+grp13 = "13. OPEN INTEREST"                                                   // [REV-25/26]
+oiSym   = input.symbol("BINANCE:1000PEPEUSDT.P_OI", "OI Sembol", group = grp13)
+oiLen   = input.int(6, "OI / Fiyat Penceresi (bar)", minval = 1, group = grp13)
+exhPx   = input.float(3.0, "Tükeniş: Fiyat Hareketi %", group = grp13)
+exhOi   = input.float(2.0, "Tükeniş: OI Düşüşü %", group = grp13)
+liqPx   = input.float(4.0, "Likidasyon: Fiyat Hareketi %", group = grp13)
+liqOi   = input.float(4.0, "Likidasyon: OI Düşüşü %", group = grp13)
+liqSL   = input.float(5.0, "Likidasyon: Kapanış Stopu %", group = grp13)
+liqBars = input.int(48, "Likidasyon: Maks Bar", minval = 1, group = grp13)
+liqExit = input.float(55.0, "Likidasyon: RSI7 Çıkış (long > x, short < 100-x)", group = grp13)
+
+grp4 = "4. SANAL MOTOR DÖNÜŞ"
+minHold = input.int(24, "Min Sanal Pozisyon Süresi (bar)", minval = 0, group = grp4)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TIMEFRAME GUARD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. ADX
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_adx(int diLength, int smoothing) =>
+    [plusDI, minusDI, adxValue] = ta.dmi(diLength, smoothing)
+    adxValue
+
+adx5 = f_adx(diLen, adxLen)
+
+f_diDiff(int diLength, int smoothing) =>
+    [plusDI, minusDI, adxValue] = ta.dmi(diLength, smoothing)
+    plusDI - minusDI
+
+btcAdx4 = request.security(btcSym, btcTrendTf, f_adx(diLen, adxLen)[1],    gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)  // [REV-19]
+btcDi4  = request.security(btcSym, btcTrendTf, f_diDiff(diLen, adxLen)[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+btcFill = not na(btcAdx4) and not na(btcDi4) and btcAdx4 > btcAdxMin ? (btcDi4 > 0 ? 1 : btcDi4 < 0 ? -1 : 0) : 0
+btcAdx1 = request.security(btcSym, btcFlipTf, f_adx(diLen, adxLen)[1],    gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)  // [REV-20]
+btcDi1  = request.security(btcSym, btcFlipTf, f_diDiff(diLen, adxLen)[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+flipX   = not na(btcAdx1) and btcAdx1 > btcFlipAdx and nz(btcAdx1[1]) <= btcFlipAdx
+flipL   = flipX and nz(btcDi1) > 0
+flipS   = flipX and nz(btcDi1) < 0
+rsiMik  = ta.rsi(close, mikLen)                                               // [REV-18]
+
+f_atrp(int n) =>
+    ta.atr(n) / close * 100.0
+
+atr1hPct = request.security(syminfo.tickerid, "60", f_atrp(ahfAtrLen)[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)  // [REV-23]
+
+// [REV-25/26] OI — kapanmış bir önceki barın değeri
+oiRaw  = request.security(oiSym, timeframe.period, close, gaps = barmerge.gaps_off, ignore_invalid_symbol = true)
+oiPrev = oiRaw[1]
+dOi    = not na(oiPrev) and not na(oiPrev[oiLen]) and oiPrev[oiLen] > 0 ? (oiPrev / oiPrev[oiLen] - 1.0) * 100.0 : na
+dPx    = (close / close[oiLen] - 1.0) * 100.0
+oiOk   = not na(dOi)
+exhDir = oiOk and dPx >= exhPx and dOi <= -exhOi ? 1 : oiOk and dPx <= -exhPx and dOi <= -exhOi ? -1 : 0
+liqL   = oiOk and dPx <= -liqPx and dOi <= -liqOi
+liqS   = oiOk and dPx >= liqPx and dOi <= -liqOi
+
+var int   vLiq    = 0
+var float vLiqEp  = na
+var int   vLiqBar = 0
+if barstate.isconfirmed
+    if vLiq != 0
+        lRet = (close / vLiqEp - 1.0) * vLiq
+        if lRet <= -liqSL / 100.0 or bar_index - vLiqBar >= liqBars or (vLiq > 0 and rsiMik > liqExit) or (vLiq < 0 and rsiMik < 100.0 - liqExit)
+            vLiq := 0
+        else if vLiq > 0 and liqS
+            vLiq    := -1
+            vLiqEp  := close
+            vLiqBar := bar_index
+        else if vLiq < 0 and liqL
+            vLiq    := 1
+            vLiqEp  := close
+            vLiqBar := bar_index
+    else
+        if liqL
+            vLiq    := 1
+            vLiqEp  := close
+            vLiqBar := bar_index
+        else if liqS
+            vLiq    := -1
+            vLiqEp  := close
+            vLiqBar := bar_index
+
+// Son tamamlanmış 30M mumun ADX değeri — repaint yok
+adx30 = request.security(
+     syminfo.tickerid,
+     "30",
+     f_adx(diLen, adxLen)[1],
+     gaps = barmerge.gaps_off,
+     lookahead = barmerge.lookahead_on)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. MOMENTUM
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+momA = na(close[aLookback]) ? na : (close / close[aLookback] - 1.0) * 100.0
+momB = na(close[bLookback]) ? na : (close / close[bLookback] - 1.0) * 100.0
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. MOTOR A — PATLAMA
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+aGate = not na(adx5) and not na(adx30) and not na(adx5[aRiseLen]) and
+     adx30 > aAdx30Min and adx5 > aAdx5Min and adx5 > adx5[aRiseLen]
+aLong  = aGate and not na(momA) and momA >= aMomLimit
+aShort = aGate and not na(momA) and momA <= -aMomLimit
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. MOTOR B — 4H SWING
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bGate = not na(adx5) and not na(adx30) and not na(adx5[bRiseLen]) and
+     adx30 > bAdx30Min and adx5 > adx5[bRiseLen]
+bLong  = bGate and not na(momB) and momB >= bMomLimit
+bShort = bGate and not na(momB) and momB <= -bMomLimit
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7. SANAL MOTORLAR (always-in, ayrı hold sayacı)                   [REV-07]
+//    vV2 = V2 sistemi (Motor A)      vV3 = V3 sistemi (A OR B)
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var int vV2    = 0
+var int vV2Bar = 0
+var int vV3    = 0
+var int vV3Bar = 0
+
+v3Long  = aLong or bLong
+v3Short = aShort or bShort
+
+if barstate.isconfirmed
+    canV2 = vV2 == 0 or bar_index - vV2Bar >= minHold
+    if aLong and vV2 <= 0 and canV2
+        vV2    := 1
+        vV2Bar := bar_index
+    else if aShort and vV2 >= 0 and canV2
+        vV2    := -1
+        vV2Bar := bar_index
+
+    canV3 = vV3 == 0 or bar_index - vV3Bar >= minHold
+    if v3Long and vV3 <= 0 and canV3
+        vV3    := 1
+        vV3Bar := bar_index
+    else if v3Short and vV3 >= 0 and canV3
+        vV3    := -1
+        vV3Bar := bar_index
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7b. SANAL RSI UÇ MOTORU                                           [REV-10]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rsiV = ta.rsi(close, rsiLen)
+
+var int   vR    = 0
+var float vREp  = na
+var int   vRBar = 0
+
+if barstate.isconfirmed and not na(rsiV)
+    if vR != 0
+        rRet = (close / vREp - 1.0) * vR
+        if rRet <= -rsiSL / 100.0 or bar_index - vRBar >= rsiMaxBars or (vR > 0 and rsiV > rsiExit) or (vR < 0 and rsiV < 100.0 - rsiExit)
+            vR := 0
+    else
+        if rsiV < rsiLo
+            vR    := 1
+            vREp  := close
+            vRBar := bar_index
+        else if rsiV > 100.0 - rsiLo
+            vR    := -1
+            vREp  := close
+            vRBar := bar_index
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7c. SANAL ORTA REJİM MOTORU                                       [REV-15]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+momM  = na(close[mLookback]) ? na : (close / close[mLookback] - 1.0) * 100.0
+mGate = not na(adx5) and not na(adx30) and not na(adx5[mRiseLen]) and
+     adx30 > mAdx30Min and adx5 > adx5[mRiseLen]
+mLong  = mGate and not na(momM) and momM >= mMomLimit
+mShort = mGate and not na(momM) and momM <= -mMomLimit
+
+var int vMid    = 0
+var int vMidBar = 0
+
+if barstate.isconfirmed
+    canMid = vMid == 0 or bar_index - vMidBar >= mHold
+    if mLong and vMid <= 0 and canMid
+        vMid    := 1
+        vMidBar := bar_index
+    else if mShort and vMid >= 0 and canMid
+        vMid    := -1
+        vMidBar := bar_index
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7d. SANAL RSI7 MİKRO + BTC FLIP                                   [REV-18/20]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var int   vMik    = 0
+var float vMikEp  = na
+var int   vMikBar = 0
+var int   vFlip    = 0
+var int   vFlipBar = 0
+
+if barstate.isconfirmed and not na(rsiMik)
+    if vMik != 0
+        kRet = (close / vMikEp - 1.0) * vMik
+        if kRet >= mikTP / 100.0 or kRet <= -mikSL / 100.0 or bar_index - vMikBar >= mikBars
+            vMik := 0
+        else if vMik > 0 and rsiMik > 100.0 - mikLo
+            vMik    := -1
+            vMikEp  := close
+            vMikBar := bar_index
+        else if vMik < 0 and rsiMik < mikLo
+            vMik    := 1
+            vMikEp  := close
+            vMikBar := bar_index
+    else
+        if rsiMik < mikLo
+            vMik    := 1
+            vMikEp  := close
+            vMikBar := bar_index
+        else if rsiMik > 100.0 - mikLo
+            vMik    := -1
+            vMikEp  := close
+            vMikBar := bar_index
+
+if barstate.isconfirmed
+    if vFlip != 0
+        if bar_index - vFlipBar >= btcFlipBars
+            vFlip := 0
+        else if vFlip > 0 and flipS
+            vFlip    := -1
+            vFlipBar := bar_index
+        else if vFlip < 0 and flipL
+            vFlip    := 1
+            vFlipBar := bar_index
+    else
+        if flipL
+            vFlip    := 1
+            vFlipBar := bar_index
+        else if flipS
+            vFlip    := -1
+            vFlipBar := bar_index
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 8. HEDEF: RSI UÇ > MİKRO > ÇARPIŞMA > BTC 4H > BTC FLIP > ORTA REJİM                        [REV-07/10]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+collide = int(math.sign(vV2 + vV3))
+target  = vLiq != 0 ? vLiq : vR != 0 ? vR : vMik != 0 ? vMik : collide != 0 ? collide : btcFill != 0 ? btcFill : vFlip != 0 ? vFlip : vMid   // [REV-17]
+
+// [REV-22/23] durum makinesi: 0 = ana yön | 1 = karşı pozisyon | 2 = mikro kâr alındı (flat)
+rsiTrim = nz(ta.rsi(close, trimLen), 50.0)
+posDir  = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+coreEvt = target != nz(target[1])
+ahfThr  = ahfK * nz(atr1hPct) / 100.0
+barRet  = close / close[1] - 1.0                                             // [REV-24]
+trendSh = nz(ta.sma(barRet, shLen) / ta.stdev(barRet, shLen, false) * math.sqrt(shLen), 0.0)
+
+var int   stMode   = 0
+var float trimPx   = na
+var int   trimBar  = 0
+var int   trimSide = 0
+var int   cntDir   = 0
+var float cntPx    = na
+var int   cntBar   = 0
+int wantDir = posDir
+
+if barstate.isconfirmed
+    if coreEvt
+        stMode  := 0
+        wantDir := target
+    else if stMode == 0
+        wantDir := target
+        if posDir != 0 and posDir == target
+            adv = (close / strategy.position_avg_price - 1.0) * (-posDir)
+            if ahfThr > 0 and adv >= ahfThr
+                wantDir := -posDir
+                stMode  := 1
+                cntDir  := posDir
+                cntPx   := close
+                cntBar  := bar_index
+            else if exhDir == posDir                                         // [REV-25]
+                wantDir  := 0
+                stMode   := 2
+                trimPx   := close
+                trimBar  := bar_index
+                trimSide := posDir
+            else if ((posDir > 0 and rsiTrim >= trimX) or (posDir < 0 and rsiTrim <= 100.0 - trimX)) and trendSh * posDir < shMax   // [REV-24]
+                wantDir  := 0
+                stMode   := 2
+                trimPx   := close
+                trimBar  := bar_index
+                trimSide := posDir
+    else if stMode == 1
+        cGain = (close / cntPx - 1.0) * (-cntDir)
+        if cGain <= -ahfSL / 100.0 or bar_index - cntBar >= ahfBars
+            stMode  := 0
+            wantDir := target
+        else
+            wantDir := -cntDir
+    else
+        backIn = trimSide > 0 ? (rsiTrim <= trimY or bar_index - trimBar >= trimBars or close >= trimPx * (1.0 + trimCont / 100.0)) :
+             (rsiTrim >= 100.0 - trimY or bar_index - trimBar >= trimBars or close <= trimPx * (1.0 - trimCont / 100.0))
+        if backIn
+            stMode  := 0
+            wantDir := target
+        else
+            wantDir := 0
+
+goLong  = barstate.isconfirmed and wantDir == 1 and posDir != 1
+goShort = barstate.isconfirmed and wantDir == -1 and posDir != -1
+goFlat  = barstate.isconfirmed and wantDir == 0 and posDir != 0
+
+if goLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG")
+else if goShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT")
+else if goFlat
+    strategy.close_all(comment = "EXIT-ALL")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 9. GÖRSEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(goLong, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = color.lime, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(goShort, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = color.red, text = "SHORT", textcolor = color.white, size = size.tiny)
+plotshape(goFlat, title = "FLAT", style = shape.xcross, location = location.abovebar,
+     color = color.gray, size = size.tiny)
+
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 92) : strategy.position_size < 0 ? color.new(color.red, 92) : color.new(color.gray, 95))
+
+plot(adx5, "ADX 5M", display = display.data_window)
+plot(adx30, "ADX 30M", display = display.data_window)
+plot(momA, "Mom A (4 bar) %", display = display.data_window)
+plot(momB, "Mom B (48 bar) %", display = display.data_window)
+plot(vV2, "Sanal V2", display = display.data_window)
+plot(vV3, "Sanal V3", display = display.data_window)
+plot(vR, "Sanal RSI", display = display.data_window)
+plot(rsiV, "RSI", display = display.data_window)
+plot(vMid, "Sanal ORTA", display = display.data_window)
+plot(momM, "Mom M (24 bar) %", display = display.data_window)
+plot(btcAdx4, "BTC 4H ADX", display = display.data_window)
+plot(btcAdx1, "BTC 1H ADX", display = display.data_window)
+plot(vMik, "Sanal MİKRO", display = display.data_window)
+plot(vFlip, "Sanal BTC FLIP", display = display.data_window)
+plot(btcFill, "BTC Dolgu", display = display.data_window)
+plot(rsiTrim, "Mikro RSI", display = display.data_window)
+plot(stMode, "Durum (0 ana/1 karşı/2 kâr alındı)", display = display.data_window)
+plot(atr1hPct, "1H ATR %", display = display.data_window)
+plot(trendSh, "Fiyat Sharpe (3g)", display = display.data_window)
+plot(dOi, "OI Değişim % (6 bar)", display = display.data_window)
+plot(exhDir, "Tükeniş", display = display.data_window)
+plot(vLiq, "Sanal Likidasyon", display = display.data_window)
+plot(target, "Hedef", display = display.data_window)

@@ -1,0 +1,214 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════
+// CYBORG | 1000PEPEUSDT.P 5M | SWING V5 — ÇARPIŞMA + DAR HAREKET + KIRILIM EKLEME
+// LONG + SHORT | FLAT YOK | sabit 500$ birim, en fazla 3 birim
+// ───────────────────────────────────────────────────────────────────
+// REV LOG
+//  V2     : Motor A patlama (30M ADX>28, 5M ADX>20, adx5>adx5[12], 4 bar mom ±%3, hold 24)
+//  V3     : V2 OR Motor B (30M ADX>25, adx5>adx5[6], 48 bar mom ±%2.5)
+//  V4     : ÇARPIŞMA — sanal V2 ve sanal V3 aynı yön → pozisyon, ayrışma → FLAT
+//           TV: 681 işlem | Net 4731$ | motor 677/681 eşleşti
+//  V5     : [REV-08] DAR HAREKET motoru: V4 FLAT iken sanal 3 bar mom ±%1.5 (hold 24)
+//                    motoru pozisyonu taşır → FLAT kalkar
+//           [REV-09] AÇGÖZLÜ EKLEME: pozisyon yönünde 48 bar kırılım
+//                    (close > highest(high,48)[1] / close < lowest(low,48)[1])
+//                    → +500$ birim; son giriş/eklemeden ≥48 bar; en fazla 3 birim.
+//                    Tüm birimler tek seferde kapanır (ters sinyal / EXIT-ALL).
+// SL / TP / TRAILING YOK
+// ───────────────────────────────────────────────────────────────────
+// Araştırma motoru (1m OHLC 2023-05-05 → 2026-11-19, 500$ birim, %0.04, 1 tick, basit getiri):
+//   V4 : Net 4751$  | PF 1.65 | Calmar 3.75 | DD P98 273$ | MaxDD 358$
+//   V5 : Net 11398$ | PF 1.43 | Calmar 3.69 | DD P98 570$ | MaxDD 873$ | ort. 2.27 birim
+//        OOS (2025-05-20→) Net 5231$ PF 1.75 Calmar 5.54
+// V5 TV Strategy Tester'da DOĞRULANMADI — doğrula.
+// WunderTrading: bot max 3 giriş (pyramiding), her giriş 500$ sabit; ters ENTER = tümünü kapat + aç.
+// ═══════════════════════════════════════════════════════════════════
+strategy("CYBORG | PEPE 5M SWING V5",
+     overlay = true,
+     initial_capital = 10000,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 3,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2000)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. PARAMETRELER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grp1 = "1. ADX"
+diLen  = input.int(14, "DI Length", minval = 2, group = grp1)
+adxLen = input.int(14, "ADX Smoothing", minval = 2, group = grp1)
+
+grp2 = "2. MOTOR A — PATLAMA (V2)"
+aAdx30Min = input.float(28.0, "A: 30M ADX Minimum", group = grp2)
+aAdx5Min  = input.float(20.0, "A: 5M ADX Minimum", group = grp2)
+aRiseLen  = input.int(12, "A: 5M ADX Yükselme Lookback", minval = 1, group = grp2)
+aLookback = input.int(4, "A: Momentum Bar", minval = 1, group = grp2)
+aMomLimit = input.float(3.0, "A: Momentum Eşiği %", minval = 0.1, step = 0.25, group = grp2)
+
+grp3 = "3. MOTOR B — 4H SWING"
+bAdx30Min = input.float(25.0, "B: 30M ADX Minimum", group = grp3)
+bRiseLen  = input.int(6, "B: 5M ADX Yükselme Lookback", minval = 1, group = grp3)
+bLookback = input.int(48, "B: Momentum Bar", minval = 1, group = grp3)
+bMomLimit = input.float(2.5, "B: Momentum Eşiği %", minval = 0.1, step = 0.25, group = grp3)
+
+grp4 = "4. DAR HAREKET MOTORU"                                                // [REV-08]
+dLookback = input.int(3, "D: Momentum Bar", minval = 1, group = grp4)         // [REV-08]
+dMomLimit = input.float(1.5, "D: Momentum Eşiği %", minval = 0.1, step = 0.25, group = grp4)  // [REV-08]
+
+grp5 = "5. SANAL MOTOR DÖNÜŞ"
+minHold = input.int(24, "Min Sanal Pozisyon Süresi (bar)", minval = 0, group = grp5)
+
+grp6 = "6. AÇGÖZLÜ EKLEME"                                                    // [REV-09]
+brkLen   = input.int(48, "Kırılım Bar Sayısı", minval = 2, group = grp6)     // [REV-09]
+addGap   = input.int(48, "Eklemeler Arası Min Bar", minval = 1, group = grp6) // [REV-09]
+maxUnits = input.int(3, "Maks Birim (pyramiding ile aynı)", minval = 1, maxval = 3, group = grp6)  // [REV-09]
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TIMEFRAME GUARD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. ADX
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_adx(int diLength, int smoothing) =>
+    [plusDI, minusDI, adxValue] = ta.dmi(diLength, smoothing)
+    adxValue
+
+adx5 = f_adx(diLen, adxLen)
+
+// Son tamamlanmış 30M mumun ADX değeri — repaint yok
+adx30 = request.security(
+     syminfo.tickerid,
+     "30",
+     f_adx(diLen, adxLen)[1],
+     gaps = barmerge.gaps_off,
+     lookahead = barmerge.lookahead_on)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. MOMENTUM + KIRILIM
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+momA = na(close[aLookback]) ? na : (close / close[aLookback] - 1.0) * 100.0
+momB = na(close[bLookback]) ? na : (close / close[bLookback] - 1.0) * 100.0
+momD = na(close[dLookback]) ? na : (close / close[dLookback] - 1.0) * 100.0  // [REV-08]
+
+hiBrk = ta.highest(high, brkLen)[1]                                           // [REV-09]
+loBrk = ta.lowest(low, brkLen)[1]                                             // [REV-09]
+brkLong  = not na(hiBrk) and close > hiBrk
+brkShort = not na(loBrk) and close < loBrk
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. MOTOR SİNYALLERİ
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+aGate = not na(adx5) and not na(adx30) and not na(adx5[aRiseLen]) and
+     adx30 > aAdx30Min and adx5 > aAdx5Min and adx5 > adx5[aRiseLen]
+aLong  = aGate and not na(momA) and momA >= aMomLimit
+aShort = aGate and not na(momA) and momA <= -aMomLimit
+
+bGate = not na(adx5) and not na(adx30) and not na(adx5[bRiseLen]) and
+     adx30 > bAdx30Min and adx5 > adx5[bRiseLen]
+bLong  = bGate and not na(momB) and momB >= bMomLimit
+bShort = bGate and not na(momB) and momB <= -bMomLimit
+
+dLong  = not na(momD) and momD >= dMomLimit                                   // [REV-08]
+dShort = not na(momD) and momD <= -dMomLimit                                  // [REV-08]
+
+v3Long  = aLong or bLong
+v3Short = aShort or bShort
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. SANAL MOTORLAR (always-in, ayrı hold sayacı)
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var int vV2    = 0
+var int vV2Bar = 0
+var int vV3    = 0
+var int vV3Bar = 0
+var int vD     = 0                                                            // [REV-08]
+var int vDBar  = 0                                                            // [REV-08]
+
+if barstate.isconfirmed
+    canV2 = vV2 == 0 or bar_index - vV2Bar >= minHold
+    if aLong and vV2 <= 0 and canV2
+        vV2    := 1
+        vV2Bar := bar_index
+    else if aShort and vV2 >= 0 and canV2
+        vV2    := -1
+        vV2Bar := bar_index
+
+    canV3 = vV3 == 0 or bar_index - vV3Bar >= minHold
+    if v3Long and vV3 <= 0 and canV3
+        vV3    := 1
+        vV3Bar := bar_index
+    else if v3Short and vV3 >= 0 and canV3
+        vV3    := -1
+        vV3Bar := bar_index
+
+    canD = vD == 0 or bar_index - vDBar >= minHold                            // [REV-08]
+    if dLong and vD <= 0 and canD
+        vD    := 1
+        vDBar := bar_index
+    else if dShort and vD >= 0 and canD
+        vD    := -1
+        vDBar := bar_index
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7. HEDEF YÖN
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+collide = int(math.sign(vV2 + vV3))                                           // V4 çarpışma
+target  = collide != 0 ? collide : vD                                         // [REV-08]
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 8. EMİRLER — yön değişimi / ekleme
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var int lastFillBar = 0
+posDir = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+
+goLong  = barstate.isconfirmed and target != posDir and target == 1
+goShort = barstate.isconfirmed and target != posDir and target == -1
+goFlat  = barstate.isconfirmed and target != posDir and target == 0
+canAdd  = barstate.isconfirmed and target == posDir and posDir != 0 and
+     strategy.opentrades < maxUnits and bar_index - lastFillBar >= addGap      // [REV-09]
+addLong  = canAdd and posDir == 1 and brkLong                                 // [REV-09]
+addShort = canAdd and posDir == -1 and brkShort                               // [REV-09]
+
+if goLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG")
+    lastFillBar := bar_index
+else if goShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT")
+    lastFillBar := bar_index
+else if goFlat
+    strategy.close_all(comment = "EXIT-ALL")
+else if addLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG")
+    lastFillBar := bar_index
+else if addShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT")
+    lastFillBar := bar_index
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 9. GÖRSEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(goLong, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = collide != 0 ? color.lime : color.teal, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(goShort, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = collide != 0 ? color.red : color.maroon, text = "SHORT", textcolor = color.white, size = size.tiny)
+plotshape(addLong, title = "ADD LONG", style = shape.triangleup, location = location.belowbar, color = color.lime, size = size.tiny)
+plotshape(addShort, title = "ADD SHORT", style = shape.triangledown, location = location.abovebar, color = color.red, size = size.tiny)
+
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 92) : strategy.position_size < 0 ? color.new(color.red, 92) : na)
+
+plot(adx5, "ADX 5M", display = display.data_window)
+plot(adx30, "ADX 30M", display = display.data_window)
+plot(vV2, "Sanal V2", display = display.data_window)
+plot(vV3, "Sanal V3", display = display.data_window)
+plot(vD, "Sanal DAR", display = display.data_window)
+plot(target, "Hedef", display = display.data_window)
+plot(strategy.opentrades, "Açık Birim", display = display.data_window)

@@ -1,0 +1,37 @@
+exec(open('bscan2.py').read().split("rec('BAZ62',{},build3())")[0])
+nz=lambda x,v:np.nan_to_num(x,nan=v)
+def dirfill(A_,D_,X): return np.where(nz(A_,0)>X,np.sign(nz(D_,0)),0).astype(np.int64)
+pA=pos(run(C,gA&(mA>=3),gA&(mA<=-3),24,TICK,COMM,CASH));LB,SB=gB&(mB>=2.5),gB&(mB<=-2.5)
+pV3=pos(run(C,(gA&(mA>=3))|LB,(gA&(mA<=-3))|SB,24,TICK,COMM,CASH));pB=pos(run(C,LB,SB,24,TICK,COMM,CASH))
+pM=vstate(C,gM&(mM>=3),gM&(mM<=-3),0.,0.,0,F,F,12)
+d_=np.diff(C,prepend=np.nan);R7=100-100/(1+rma(np.where(d_>0,d_,0.),7)/rma(np.where(d_<0,-d_,0.),7))
+mr=vstate(C,(CH240>61.8)&(R7<20),(CH240>61.8)&(R7>80),0.,.05,48,R7>50,R7<50,0)
+mik=vstate(C,R7<5,R7>95,.01,.02,24,F,F,0)
+dar=vstate(C,mom(3)>=1.5,mom(3)<=-1.5,0.,0.,0,F,F,24)
+A6,D6=nz(BT[60]['adx'],0),nz(BT[60]['di'],0);cr=(A6>30)&(lag(A6,1)<=30);bflip=vstate(C,cr&(D6>0),cr&(D6<0),0.,0.,48,F,F,0)
+LIB=dict(RSIX=pR.astype(np.int64),A=pA,V3=pV3,B=pB,COL=np.sign(pA+pV3),MID=pM,RANGE=mr,MIK=mik,DAR=dar,
+         P4H=dirfill(A240,DI240,30),P4H20=dirfill(A240,DI240,20),B1D=dirfill(BT[1440]['adx'],BT[1440]['di'],30),B4H=dirfill(BT[240]['adx'],BT[240]['di'],30),BFLIP=bflip)
+LIB={k:v.astype(np.int8) for k,v in LIB.items()};pickle.dump(LIB,open('/home/claude/data/LIB.pkl','wb'))
+fillM=np.where(nz(BT[1440]['adx'],0)>30,np.sign(nz(BT[1440]['di'],0)),pM)
+V63=build3(fill=fillM);pickle.dump(V63,open('V63.pkl','wb'))
+# sync
+x=pd.ExcelFile('tv63.xlsx');p=pd.read_excel(x,'Performans');print(p.iloc[[2,6]].iloc[:,:3].to_string())
+d=pd.read_excel(x,'İşlemler');d=d[pd.to_datetime(d['Tarih ve saat'],errors='coerce').notna()]
+e=d[d.Tip.str.contains('giriş')].set_index('İşlem numarası');xx=d[d.Tip.str.contains('çıkış')].set_index('İşlem numarası')
+tv=pd.DataFrame({'et':pd.to_datetime(e['Tarih ve saat']),'dir':np.where(e.Tip.str.contains('Kısa'),-1,1),'xt':pd.to_datetime(xx['Tarih ve saat']),'pnl':xx['Net K/Z USDT'].astype(float)})
+en=pd.DataFrame({'et':B5.index[V63[1]].tz_localize(None)+pd.Timedelta(hours=3),'dir':V63[3],'xt':B5.index[V63[2]].tz_localize(None)+pd.Timedelta(hours=3),'pnl':V63[4]})
+m=tv.merge(en,on=['et','dir'],how='outer',suffixes=('_tv','_en'),indicator=True);bb=m[m._merge=='both']
+print('SYNC',m._merge.value_counts().to_dict(),'exit',(bb.xt_tv==bb.xt_en).sum(),'/',len(bb),'TV net',round(tv.pnl.sum(),1),'(%',round(tv.pnl.sum()/5),') EN net',round(en.pnl.sum(),1))
+print('ilk fark',m[m._merge!='both'].sort_values('et').head(2)[['et','dir','_merge']].values.tolist())
+dd=pd.read_excel(x,'Performans');print(dd[dd.iloc[:,0].astype(str).str.contains('Maks düşüş')].iloc[:,:3].to_string(index=False))
+# 50 günlük zayıf pencereler (TV işlemlerinden günlük K/Z)
+dly=tv.groupby(tv.xt.dt.floor('D')).pnl.sum();dly=dly.reindex(pd.date_range(dly.index.min(),dly.index.max(),freq='D'),fill_value=0)
+r50=dly.rolling(50).sum().dropna();m50=dly.rolling(50).median().dropna()
+sel=[];s=r50.copy()
+while len(sel)<20 and len(s):
+    t=s.idxmin();sel.append(t);s=s[(s.index<t-pd.Timedelta(days=30))|(s.index>t+pd.Timedelta(days=30))]
+W50=sorted([(t-pd.Timedelta(days=50),t) for t in sel])
+print('20 zayıf 50g pencere (TV V6.3): net / günlük medyan')
+for a,b_ in W50: print(f'  {a.date()}→{b_.date()}  net {r50[b_]:7.1f}  günlük medyan {m50[b_]:6.2f}  {"OOS" if b_>=pd.Timestamp("2025-05-20") else "IS"}')
+pickle.dump(W50,open('/home/claude/data/W50.pkl','wb'))
+print('50g pencere net medyanı (tüm kayan):',round(r50.median(),1),'| zayıf20 toplam',round(sum(r50[b_] for _,b_ in W50),1))
