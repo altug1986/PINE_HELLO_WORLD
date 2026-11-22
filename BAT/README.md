@@ -31,12 +31,13 @@ Zaman: `open_time_ms` / `create_time` UTC. Veri kalite raporları: `BAT/data_qua
 - `engine/` — offline TV-sadık numba motoru ve araştırma betikleri (`v55.py` katman, `eng.py`, `mtm30.py` 30 dk MTM metrikleri, `teco.py`, `astre_test.py`, `tvcmp63.py` TV eşleştirme, `stlib.py` Supertrend, `whale_code.json` gömülü balina kodu, `build_top.py` metrics birleştirici). Ara önbellekler (`*.pkl`, `*.npz`, ~1.3 GB) yüklenmedi; betikler veriden yeniden üretir.
 - `data_quality/` — 1 dk eksik aralık / hatalı satır / indirilemeyen gün listeleri ve OI kalite raporu.
 
-## Durum (2026-11-22)
+## Durum (2026-11-22, öğle)
 
 | Sürüm | Kaynak | Net $ | İşlem | Not |
 |---|---|---|---|---|
-| V6.3 | **TV export** | 8752 | 3018 | PF 1.415, MaxDD 30 dk (TV işlemleri) 313; balina verisi TV'de 2026-04'te başlıyor |
-| V6.5 | motor | 9425 | 2886 | + 90 dk Supertrend + 30 dk ADX (TV benzeri balina) |
-| V6.6 | motor | 9056 | 2769 | V6.5'in düşük riskli ayarı (tam balina geçmişi): MaxDD 296, DD P95/98/99 157/192/210 — güncel aday, TV'de doğrulanmadı |
+| V6.3 | TV | 8752 | 3018 | PF 1.415 |
+| V6.7 TREND (Astre) | TV | 9326 | 3164 | PF 1.411, MaxDD 289/300 |
+| V7.0 | TV | 9967 | 2968 | PF 1.478, MaxDD 262/275 |
+| **V7.1** | **TV** | **10198** | 3162 | **PF 1.456, MaxDD 255/275, Calmar 30 dk 5.70, Sortino 3.56 — seçilen** |
 
-Elenenler (motor): 8 saatlik balina filtresi, balina sinyaliyle giriş, hata → ters çevirme, 4–12 saatlik trend takibi.
+Ayrıntılar, sorunlar ve dersler: `BAT/KAIZEN_2026-11-22.md`. Zaman dilimi parametreli, TV ile doğrulanmış motor: `BAT/engine/p1m.py` (yan motor için `run(D, ovr=...)`, ek kapı `xGL/xGS`, ek oy `xP/xw`); V6.7 trend katmanı portu `BAT/engine/rev25.py`.
