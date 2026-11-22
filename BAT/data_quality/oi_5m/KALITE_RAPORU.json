@@ -1,0 +1,19 @@
+{
+  "sembol": "BATUSDT",
+  "kaynak": "Binance USD-M daily metrics",
+  "zaman_dilimi": "UTC",
+  "taranan_baslangic": "2021-01-01",
+  "taranan_bitis": "2026-11-20",
+  "kaynak_ilk_etiket": "2021-12-01 00:00:00",
+  "kaynak_son_etiket": "2026-11-20 23:55:00",
+  "kaynak_5dk_satir": 522829,
+  "10dk_satir": 261417,
+  "10dk_eksik_ic_aralik": 22,
+  "10dk_eksik_ic_kayit": 87,
+  "yok_veya_hata_gun_sayisi": 334,
+  "hatali_satir": 0,
+  "tekrar_satir": 0,
+  "celiskili_kayit": 0,
+  "10dk_yontemi": "Kaynak zaman etiketi dakikasi 00,10,20,30,40,50 olan anlik gozlemler; ortalama degil. Eksik deger doldurulmaz.",
+  "uyari": "Binance metrics arsivinde zaman etiketi anlaminin degistigine iliskin raporlar var; etiket ve veri yayim zamani icin API ile ayrica dogrulama yapin. Canli/backtest uyumunda ileriye bakis riski bulunur. Veri kapsamı Binance arsiviyle sinirlidir."
+}

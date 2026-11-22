@@ -1,0 +1,499 @@
+//@version=6
+// CYBORG | BAT 5M KONSORSİYUM V6.4 | REV-22
+// REV-22: TV top trader verisi 2026-04'te başlıyor. Öncesi gömülü koddan (motor kapısı), TV verisi ısınınca yalnız TV. Canlı davranış V6.3 ile aynı.
+// REV-21: Astre V6.2 (REV-20 balina verisi TV'den) + pozda kalış 648→288 bar, 15 dk ADX 20→25 (Claude V6.2 keşfi).
+// REV-20 (Astre): balina veri bağlantısı ve tanısı; gömülü kod kaldırıldı.
+// Tüm tarihte ve canlıda yalnızca TradingView üzerindeki iki Binance veri serisi kullanılır.
+// TradingView/Request/4, cryptoDerivativeMetric: pozisyon LSRPTOP, hesap LSRTOP, her ikisinde de close.
+// Saat H kararında sadece H-1 kapanışı vardır. Her iki pencere geçmişte de ısınır.
+// Veri yokken V6.1'in kapısız devam davranışı korunur. Durum ve pencereler tabloda görünür.
+// TV V6.3 (kapı yalnız 2026-04 sonrası): 8752 $ / 3018 işlem / PF 1.415. Araştırma motoru V6.4 (tam kapı, TV'de doğrulanmadı): 8654 $ / 2818 işlem / MaxDD 30dk 293 / DD P95-98-99 151/180/197.
+// WunderTrading emir yorumlarındaki BOTADI ve BOTKODU, V6.1'den gelen yer tutuculardır.
+strategy("CYBORG | BAT 5M KONSORSİYUM V6.4",
+     overlay = true,
+     initial_capital = 500,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 0,
+     margin_long = 0,
+     margin_short = 0,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2000)
+
+// 1. PARAMETRELER
+grp1 = "1. BİLEŞEN AĞIRLIKLARI"
+w1  = input.float(3.0, "1 DÖNÜŞ 24s (V1.0)", step = 0.05, group = grp1)
+w2  = input.float(3.0, "2 DÖNÜŞ z 4s", step = 0.05, group = grp1)
+w3  = input.float(4.0, "3 DÖNÜŞ z 8s", step = 0.05, group = grp1)
+w4  = input.float(0.0, "4 DÖNÜŞ 4s uzama", step = 0.05, group = grp1)
+w5  = input.float(0.0, "5 DÖNÜŞ 3g uzama", step = 0.05, group = grp1)
+w6  = input.float(1.0, "6 DÖNÜŞ RSI14", step = 0.05, group = grp1)
+w7  = input.float(1.0, "7 DÖNÜŞ likidasyon (OI)", step = 0.05, group = grp1)
+w8  = input.float(3.0, "8 DÖNÜŞ OI kurulum", step = 0.05, group = grp1)
+w9  = input.float(0.5, "9 DÖNÜŞ hacim klimaks", step = 0.05, group = grp1)
+w10 = input.float(1.0, "10 DÖNÜŞ BTC göreli", step = 0.05, group = grp1)
+w11 = input.float(4.0, "11 TAKİP BTC lider", step = 0.05, group = grp1)
+w12 = input.float(0.5, "12 TAKİP %3", step = 0.05, group = grp1)
+w13 = input.float(2.0, "13 TAKİP %8", step = 0.05, group = grp1)
+w14 = input.float(0.5, "14 TAKİP günlük momentum", step = 0.05, group = grp1)
+
+grp2 = "2. OY"
+onThr  = input.float(0.04, "Giriş Eşiği (skor)", step = 0.01, group = grp2)
+offThr = input.float(0.0, "Çıkış Eşiği (skor yön × pozisyon <)", step = 0.01, group = grp2)
+
+grp4 = "4. POZ İÇİ ZARAR SINIRI"
+stopPct = input.float(7.0, "Poz İçi Zarar Sınırı % (kapanış)", minval = 0.5, step = 0.5, group = grp4)
+reArm   = input.float(4.0, "Stop Sonrası Geri Giriş: Uçtan Tepki %", minval = 0.1, step = 0.5, group = grp4)
+
+grp5 = "5. HACİM ORANI"
+w15 = input.float(1.0, "15 DÖNÜŞ BAT/BTC hacim oranı (ağırlık)", step = 0.05, group = grp5)
+k15 = input.float(1.5, "15: Hacim Oranı ≥ x", step = 0.1, group = grp5)
+a15 = input.float(4.0, "15: 24s Hareket ≥ %", step = 0.5, group = grp5)
+
+grp6 = "6. POZDA KALIŞ + GİRİŞ KAPISI"
+tsBars  = input.int(288, "Pozda Kalış: En Az Bar", minval = 1, group = grp6)    // [REV-21] 648→288
+tsLoss  = input.float(1.0, "Pozda Kalış: Zarar ≥ %", step = 0.5, group = grp6)
+tsAdx   = input.float(25.0, "Pozda Kalış: 15 dk ADX <", step = 1.0, group = grp6)  // [REV-21] 20→25
+nrMin   = input.float(0.1, "Giriş Yok: Hacim Oranı <", step = 0.05, group = grp6)
+
+grp7 = "7. 1 SAATLİK TREND EŞİĞİ"
+trBatF  = input.int(5, "BAT 1S EMA Hızlı", minval = 1, group = grp7)
+trBatS  = input.int(17, "BAT 1S EMA Yavaş", minval = 1, group = grp7)
+trBtcF  = input.int(5, "BTC 1S EMA Hızlı", minval = 1, group = grp7)
+trBtcS  = input.int(20, "BTC 1S EMA Yavaş", minval = 1, group = grp7)
+trAdx   = input.float(20.0, "BAT 1S ADX ≥", step = 1.0, group = grp7)
+onTrend = input.float(0.15, "Trende Ters Giriş Eşiği (skor)", step = 0.01, group = grp7)
+blPct   = input.float(2.5, "11 BTC lider: BTC 3 bar hareket %", step = 0.25, group = grp7)
+
+grp3 = "3. DIŞ VERİ"
+oiSym  = input.symbol("BINANCE:BATUSDT.P_OI", "BAT OI Sembol", group = grp3)
+btcSym = input.symbol("BINANCE:BTCUSDT.P", "BTC Sembol", group = grp3)
+
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+// 3. TİPLER
+type Ent
+    int   v  = 0
+    float e  = na
+    int   vb = 0
+
+method step(Ent this, int s, float c, int bi, int hold, float sl) =>
+    if this.v != 0
+        if (c / this.e - 1.0) * this.v <= -sl / 100.0 or bi - this.vb >= hold
+            this.v := 0
+    if s != 0
+        if this.v != s
+            this.v  := s
+            this.e  := c
+            this.vb := bi
+        else
+            this.vb := bi
+    this.v
+
+type Osc
+    int   v  = 0
+    float e  = na
+    int   vb = 0
+
+method step(Osc this, float x, float c, int bi, float lo, float hi, float exL, float exS, float sl, int mb) =>
+    if not na(x)
+        if this.v != 0
+            if (c / this.e - 1.0) * this.v <= -sl / 100.0 or bi - this.vb >= mb or (this.v > 0 and x > exL) or (this.v < 0 and x < exS)
+                this.v := 0
+        else
+            if x < lo
+                this.v  := 1
+                this.e  := c
+                this.vb := bi
+            else if x > hi
+                this.v  := -1
+                this.e  := c
+                this.vb := bi
+    this.v
+
+type Rev
+    int   v  = 0
+    float hi = na
+    float lo = na
+
+method step(Rev this, float c, float pct) =>
+    if na(this.hi)
+        this.hi := c
+        this.lo := c
+    if this.v >= 0
+        this.hi := math.max(this.hi, c)
+        if c <= this.hi * (1.0 - pct / 100.0)
+            this.v  := -1
+            this.lo := c
+    if this.v <= 0
+        this.lo := math.min(this.lo, c)
+        if c >= this.lo * (1.0 + pct / 100.0)
+            this.v  := 1
+            this.hi := c
+    this.v
+
+// 4. VERİ VE SİNYALLER
+oiRaw = request.security(oiSym, timeframe.period, close, gaps = barmerge.gaps_off, ignore_invalid_symbol = true)
+oiP   = oiRaw[1]
+btc   = request.security(btcSym, timeframe.period, close, gaps = barmerge.gaps_off)
+f_dm() =>
+    m = (close / close[30] - 1.0) * 100.0
+    na(m) ? 0 : m >= 5.0 ? 1 : m <= -5.0 ? -1 : 0
+dmSig = request.security(syminfo.tickerid, "D", f_dm()[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+
+d288 = na(close[288]) ? na : (close / close[288] - 1.0) * 100.0
+btcV  = request.security(btcSym, timeframe.period, volume, gaps = barmerge.gaps_off)
+batQ6 = math.sum(volume * close, 6)
+btcQ6 = math.sum(btcV * btc, 6)
+r30   = not na(btcQ6) and btcQ6 > 0 ? batQ6 / btcQ6 : na
+r30m  = ta.sma(r30, 1728)
+nrv   = not na(r30) and not na(r30m) and r30m > 0 ? r30 / r30m : 1.0
+f_adx15() =>
+    [p15, m15, x15] = ta.dmi(14, 14)
+    x15
+adx15 = nz(request.security(syminfo.tickerid, "15", f_adx15()[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on), 0.0)
+gate  = nrv < nrMin
+f_adx60() =>
+    [p60, m60, x60] = ta.dmi(14, 14)
+    x60
+bEf   = request.security(syminfo.tickerid, "60", ta.ema(close, trBatF)[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+bEs   = request.security(syminfo.tickerid, "60", ta.ema(close, trBatS)[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+xEf   = request.security(btcSym, "60", ta.ema(close, trBtcF)[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+xEs   = request.security(btcSym, "60", ta.ema(close, trBtcS)[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+adx1h = nz(request.security(syminfo.tickerid, "60", f_adx60()[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on), 0.0)
+bTr   = na(bEf) or na(bEs) ? 0 : math.sign(bEf - bEs)
+xTr   = na(xEf) or na(xEs) ? 0 : math.sign(xEf - xEs)
+trDir = bTr == xTr ? bTr : 0
+onL   = trDir == -1 and adx1h >= trAdx ? onTrend : onThr
+
+// İki sembol TradingView/Request/4'ün cryptoDerivativeMetric() eşlemesidir.
+// V6.1'deki kaynak grafiği 5 dk idi. H saatinde, yalnız H-1'in son 5 dk kapanışını al.
+// gaps_on: eksik metrik mumu gerçek bir ölçüm gibi ileri taşınmaz.
+const int whHourMs = 3600000
+[whPosCloseTime, whPos5] = request.security("BINANCE:BATUSDT.P_LSRPTOP", "5", [time_close, close],
+     gaps = barmerge.gaps_on, lookahead = barmerge.lookahead_off, ignore_invalid_symbol = true)
+[whAccCloseTime, whAcc5] = request.security("BINANCE:BATUSDT.P_LSRTOP", "5", [time_close, close],
+     gaps = barmerge.gaps_on, lookahead = barmerge.lookahead_off, ignore_invalid_symbol = true)
+
+var array<float> whV = array.new_float()
+var array<int>   whT = array.new_int()
+var float whLast = na
+var float whPos = na
+var float whAcc = na
+var float whRatio = na
+var float whZ = na
+var float whZ24 = na
+var bool whRepeat = false
+var int whCount24 = 0
+var int whFirstPairTime = na
+int whHour = time("60")
+bool whNewHour = timeframe.change("60")
+if barstate.isconfirmed and (barstate.isfirst or whNewHour)
+    whPos := whPosCloseTime[1] == whHour and whPos5[1] > 0 ? whPos5[1] : na
+    whAcc := whAccCloseTime[1] == whHour and whAcc5[1] > 0 ? whAcc5[1] : na
+    whRatio := not na(whPos) and not na(whAcc) ? whPos / whAcc : na
+    whZ := na
+    whZ24 := na
+    whRepeat := false
+    while whT.size() > 0 and whT.first() <= whHour - 720 * whHourMs
+        whT.shift()
+        whV.shift()
+    if not na(whRatio)
+        if na(whFirstPairTime)
+            whFirstPairTime := whHour
+        float dv = math.log(whPos) - math.log(whAcc)
+        whRepeat := not na(whLast) and dv == whLast
+        if not whRepeat
+            whV.push(dv)
+            whT.push(whHour)
+            if whV.size() >= 360
+                float sd30 = whV.stdev(false)
+                whZ := sd30 > 0 ? (dv - whV.avg()) / sd30 : na
+        whLast := dv
+    whCount24 := 0
+    if whT.size() > 0
+        for k = whT.size() - 1 to 0
+            if whT.get(k) <= whHour - 24 * whHourMs
+                break
+            whCount24 += 1
+    if not na(whRatio) and not whRepeat and whCount24 >= 12
+        array<float> recent = whV.slice(whV.size() - whCount24, whV.size())
+        float sd24 = recent.stdev(false)
+        whZ24 := sd24 > 0 ? (whV.last() - recent.avg()) / sd24 : na
+
+// [REV-22] GÖMÜLÜ GEÇMİŞ: TV'de top trader verisi 2026-04'te başlıyor. TV verisinin 30 günlük z'si ısınana kadar
+//           (ilk 360 geçerli saat) kapı gömülü koddan okunur (motor kapısı); ısındıktan sonra yalnız TV verisi.
+//           Harf: A–Z a–z 0–9 - _ (64). Değer v → durum = v / 16, süre = v % 16; süre 0 ise sonraki 2 harf (h1 × 64 + h2).
+WH_ALPH = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+WH_H0   = 1638388800000                                                  // 2021-12-01 20:00 UTC (ilk saat, ms)
+WH_TOT  = 43564                                                         // kodlanan saat sayısı (son: 2026-11-20 23:00 UTC)
+var array<string> WH_CODE = array.from("hNnKjKmDhBhCVAAURLUEUDSAARhHRAASnDhJiChBoGhAAThHYFSAAQhVERIkAAXSBRJRIhDhDkBQAaBmDhChDhCRAAXUNmBjHhBmCiNRBZLSMSBkDTAAYhEhLWMiKkDhChJUMRDRDoChGgAlxWiALmhCiBVAsDSBRBSJhJSAAYSBRISFhGTBmEiAARRCjAAXhBiMRHSBRDRHSLSEkDYAAaiJXAAbmAAZqPSCRFTAAVYBRHbiOVBQAg5RyRxQAcyhykCTMiDYDQATCkDVBVFpGiFRGYBWGQAShA__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_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_yjxj4gAZxkzgAW1pSiUBSAARRJRBRFkBhKiCgAYyjWAAQTFRIiFnMYAARaPUFRMpAARiBhBmAAQaLlKQAYkDhDRCkIaAAahAAahFmAARVHRKmKSDRCRBUAAViJhJhCTDWmAAokDSAAYTCVHXCZJhChBhBhLjBWOgA22ixsxi1TBjBmBRBoUhSBREREjDgAZxRhZP",
+     "SCWAAaZBSIhAASiAAbhEhGRDhEhRETIQAjxiyQAfzdlAAcVAAThFjNhDUERGRGlChBhFQAUBlAAThWBSBSLRBRCaDiBiAAVRIRDRGUJjLRLhBhBhDREhAAelBkNjLWBROlCiNTIgBaxixgAdxm1r2TiBmTCcBgAXSBhCRIRDTCSHSCSCUBQAcyZyX0QAyyQBLxTzR6kIlAAYYAAQhCkGjEQA59QAy-T1QArxoBiCjAAUkLsLVGiEgAZCTGRAAvhDjBhDrBjCgAXyoUoYDRAAShIhCTAAZThDrPhBhAAfWBRERKhChEpJhIiImJSGTHjAAZrCgAu0TsChCWAAWiPTBRIRGhBkEkJVITFpAAQiBjChChDqBRvBRBTBSBRCRBTBTAASTAAQiCgAxxgAnxpxvTCSEoDgAYRxWKRBSESCjDTJRFlOhEgAVWAATnAARTKhChBgCgzmxj4kxqUERPhBhBgAaXCRBRCSLhISBRLRHXBUMWBXDiFiHSCQAfyRxQBRzQAaxRyY4RxeCiChAATRHhBlGRKkDhHhPSBRCRCQAYxoPUCRCRBRBSDQBN1biYkFhBhBTBUBQAYBSkBkBsBhBlBiDVBRAAQhCjCiBgAVxVgAhxpxkxTqDYAAXhERBSHjHhBhKhBUETAAUUBSBRAAQVEiFhOiLhHRFRIhDiCkDhCRFSDRIREVDiEjBhBhAARSHUGRBRBWEnDoAARTDhChDmBrEZCUMhEQATBRCQAQDfDhCSAARhCoBhOUGlCgAVYBRBRBQAVnPmCYOjEiBjBhDgAaxk2VBSMRBTHRCRBTMQA7xtNTCQA53YzQAh2RxRzQAT0RxQAb4QBKyR0SxR3YBQAWhQAaBRBiBmEYHhHhBhBhDjBrAARRCbETAAShJmBkAASU",
+     "FQAQBUCiMhEjBhAAQoOQBD")
+var array<int> whStart = array.new_int()
+var array<int> whSt    = array.new_int()
+if barstate.isfirst
+    int hAcc = 0
+    for chunk in WH_CODE
+        int i = 0
+        int nCh = str.length(chunk)
+        while i < nCh
+            int v = str.pos(WH_ALPH, str.substring(chunk, i, i + 1))
+            int sCode = int(math.floor(v / 16))
+            int lenH = v % 16
+            if lenH == 0
+                lenH := str.pos(WH_ALPH, str.substring(chunk, i + 1, i + 2)) * 64 + str.pos(WH_ALPH, str.substring(chunk, i + 2, i + 3))
+                i += 3
+            else
+                i += 1
+            whStart.push(hAcc)
+            whSt.push(sCode)
+            hAcc += lenH
+var int whPtr = 0
+var bool whTvOn = false
+if whV.size() >= 360
+    whTvOn := true
+int whIdx = int(math.floor((time - WH_H0) / 3600000))
+int whEmb = 0
+bool whEmbOk = not whTvOn and whIdx >= 0 and whIdx < WH_TOT and whStart.size() > 0
+if whEmbOk
+    while whPtr + 1 < whStart.size() and whStart.get(whPtr + 1) <= whIdx
+        whPtr += 1
+    whEmb := whSt.get(whPtr)
+
+bool tvL = (not na(whZ) and whZ >= 1.0) or (not na(whZ24) and whZ24 >= 1.5)
+bool tvS = (not na(whZ) and whZ <= -1.0) or (not na(whZ24) and whZ24 <= -1.5)
+bool gateL = whEmbOk ? (whEmb == 1 or whEmb == 3) : tvL     // [REV-22]
+bool gateS = whEmbOk ? (whEmb == 2 or whEmb == 3) : tvS     // [REV-22]
+int whState = (gateL ? 1 : 0) + (gateS ? 2 : 0)
+bool whReady = whEmbOk or not na(whZ) or not na(whZ24)
+
+onS   = trDir == 1 and adx1h >= trAdx ? onTrend : onThr
+s15   = na(d288) ? 0 : nrv >= k15 and math.abs(d288) >= a15 ? (d288 > 0 ? -1 : d288 < 0 ? 1 : 0) : 0
+d48  = na(close[48])  ? na : (close / close[48]  - 1.0) * 100.0
+d864 = na(close[864]) ? na : (close / close[864] - 1.0) * 100.0
+sV1  = na(d288) ? 0 : d288 <= -3.5 ? 1 : d288 >= 6.0 ? -1 : 0
+s4s  = na(d48)  ? 0 : d48 <= -8.0 ? 1 : d48 >= 8.0 ? -1 : 0
+s3g  = na(d864) ? 0 : d864 <= -12.0 ? 1 : d864 >= 12.0 ? -1 : 0
+zB48 = ta.sma(close, 48)
+zD48 = ta.stdev(close, 48)
+z48  = not na(zD48) and zD48 > 0 ? (close - zB48) / zD48 : na
+zB96 = ta.sma(close, 96)
+zD96 = ta.stdev(close, 96)
+z96  = not na(zD96) and zD96 > 0 ? (close - zB96) / zD96 : na
+r14  = ta.rsi(close, 14)
+r7   = ta.rsi(close, 7)
+
+dO288 = not na(oiP) and not na(oiP[288]) and oiP[288] > 0 ? (oiP / oiP[288] - 1.0) * 100.0 : na
+sOIK  = na(d288) or na(dO288) ? 0 : math.abs(d288) >= 4.0 and dO288 >= 6.0 ? (d288 > 0 ? -1 : d288 < 0 ? 1 : 0) : 0
+vr    = math.sum(volume, 288) / (math.sum(volume, 1728) / 1728.0 * 288.0)
+sHVX  = na(d288) or na(vr) ? 0 : math.abs(d288) >= 5.0 and vr >= 1.5 ? (d288 > 0 ? -1 : d288 < 0 ? 1 : 0) : 0
+dB288 = na(btc[288]) ? na : (btc / btc[288] - 1.0) * 100.0
+rr    = na(d288) or na(dB288) ? na : d288 - dB288
+sREL  = na(rr) ? 0 : math.abs(rr) >= 6.0 ? (rr > 0 ? -1 : rr < 0 ? 1 : 0) : 0
+
+// 5. BİLEŞENLER + OY
+var Ent cV1  = Ent.new()
+var Osc cZ4  = Osc.new()
+var Osc cZ8  = Osc.new()
+var Ent c4s  = Ent.new()
+var Ent c3g  = Ent.new()
+var Osc cRSI = Osc.new()
+var Ent cOIK = Ent.new()
+var Ent cHVX = Ent.new()
+var Ent cREL = Ent.new()
+var Rev cT3  = Rev.new()
+var Rev cT8  = Rev.new()
+var Ent c15  = Ent.new()
+var int   vLiq = 0
+var float vLiqEp = na
+var int   vLiqB = 0
+var int   vBL  = 0
+var int   vBLb = 0
+var int   vDM  = 0
+var int   pos  = 0
+var int   realDir = 0
+var float rEp     = na
+var int   lockDir = 0
+var float lockExt = na
+var int   prevT   = 0
+var int   rEb     = 0
+var float score = 0.0
+var array<int> P = array.new_int(15, 0)
+
+if barstate.isconfirmed
+    okO  = not na(oiP) and not na(oiP[6]) and oiP > 0 and oiP[6] > 0
+    dOi6 = okO ? (oiP / oiP[6] - 1.0) * 100.0 : 0.0
+    dPx6 = (close / close[6] - 1.0) * 100.0
+    liqL = okO and dPx6 <= -1.5 and dOi6 <= -2.0
+    liqS = okO and dPx6 >= 1.5 and dOi6 <= -2.0
+    if vLiq != 0
+        lRet = (close / vLiqEp - 1.0) * vLiq
+        if lRet <= -5.0 / 100.0 or bar_index - vLiqB >= 144 or (vLiq > 0 and r7 > 65.0) or (vLiq < 0 and r7 < 35.0)
+            vLiq := 0
+        else if vLiq > 0 and liqS
+            vLiq   := -1
+            vLiqEp := close
+            vLiqB  := bar_index
+        else if vLiq < 0 and liqL
+            vLiq   := 1
+            vLiqEp := close
+            vLiqB  := bar_index
+    else
+        if liqL
+            vLiq   := 1
+            vLiqEp := close
+            vLiqB  := bar_index
+        else if liqS
+            vLiq   := -1
+            vLiqEp := close
+            vLiqB  := bar_index
+    if vBL != 0 and bar_index - vBLb >= 24
+        vBL := 0
+    if not na(btc) and not na(btc[3]) and not na(close[3])
+        br = (btc / btc[3] - 1.0) * 100.0
+        ar = (close / close[3] - 1.0) * 100.0
+        if br >= blPct and ar < br
+            vBL  := 1
+            vBLb := bar_index
+        else if br <= -blPct and ar > br
+            vBL  := -1
+            vBLb := bar_index
+    if dmSig != 0
+        vDM := dmSig
+    P.set(0,  cV1.step(sV1, close, bar_index, 648, 3.0))
+    P.set(1,  cZ4.step(z48, close, bar_index, -4.0, 4.0, 0.5, -0.5, 8.0, 288))
+    P.set(2,  cZ8.step(z96, close, bar_index, -3.5, 3.5, 0.0, 0.0, 8.0, 288))
+    P.set(3,  c4s.step(s4s, close, bar_index, 48, 10.0))
+    P.set(4,  c3g.step(s3g, close, bar_index, 1728, 10.0))
+    P.set(5,  cRSI.step(r14, close, bar_index, 20.0, 80.0, 45.0, 55.0, 3.0, 144))
+    P.set(6,  vLiq)
+    P.set(7,  cOIK.step(sOIK, close, bar_index, 144, 10.0))
+    P.set(8,  cHVX.step(sHVX, close, bar_index, 288, 10.0))
+    P.set(9,  cREL.step(sREL, close, bar_index, 288, 10.0))
+    P.set(10, vBL)
+    P.set(11, cT3.step(close, 3.0))
+    P.set(12, cT8.step(close, 8.0))
+    P.set(13, vDM)
+    P.set(14, c15.step(s15, close, bar_index, 288, 10.0))
+    W = array.from(w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15)
+    num = 0.0
+    den = 0.0
+    for j = 0 to 14
+        num += W.get(j) * P.get(j)
+        den += math.abs(W.get(j))
+    score := den > 0 ? num / den : 0.0
+    want = pos
+    if pos != 0 and score * pos < offThr
+        want := 0
+    if score >= onL
+        want := 1
+    else if score <= -onS
+        want := -1
+    pos := want
+    tgt = pos
+    if tgt != prevT
+        lockDir := 0
+        prevT   := tgt
+    wD = tgt
+    if realDir != 0 and wD == realDir
+        plNow = (close / rEp - 1.0) * realDir * 100.0
+        if plNow <= -stopPct
+            lockDir := realDir
+            lockExt := close
+            wD      := 0
+        else if bar_index - rEb >= tsBars and plNow <= -tsLoss and adx15 < tsAdx
+            lockDir := realDir
+            lockExt := close
+            wD      := 0
+    if lockDir != 0 and wD == lockDir
+        lockExt := lockDir > 0 ? math.min(lockExt, close) : math.max(lockExt, close)
+        if (close / lockExt - 1.0) * lockDir * 100.0 >= reArm
+            lockDir := 0
+        else
+            wD := 0
+    if wD != 0 and wD != realDir and (gate or (wD == 1 and gateL) or (wD == -1 and gateS))
+        wD := 0
+    if wD != realDir
+        realDir := wD
+        rEp     := close + syminfo.mintick * wD
+        rEb     := bar_index
+
+pUp = 1.0 / (1.0 + math.exp(-(-0.0247 + 0.7649 * score)))
+
+// 6. EMİRLER
+realPos = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+goLong  = barstate.isconfirmed and realDir == 1 and realPos != 1
+goShort = barstate.isconfirmed and realDir == -1 and realPos != -1
+goFlat  = barstate.isconfirmed and realDir == 0 and realPos != 0
+
+if goLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goFlat
+    strategy.close_all(comment = "EXIT-ALL_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+
+// 7. GÖRSEL
+plotshape(goLong, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = color.lime, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(goShort, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = color.red, text = "SHORT", textcolor = color.white, size = size.tiny)
+plotshape(goFlat, title = "FLAT", style = shape.xcross, location = location.abovebar,
+     color = color.gray, size = size.tiny)
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 92) : strategy.position_size < 0 ? color.new(color.red, 92) : color.new(color.gray, 95))
+plot(score, "Konsorsiyum Skoru", display = display.data_window)
+plot(pos, "Konsorsiyum Yönü", display = display.data_window)
+plot(realDir, "Gerçek Yön", display = display.data_window)
+plot(lockDir, "Stop Kilidi", display = display.data_window)
+plot(nrv, "BAT/BTC Hacim Oranı (NR)", display = display.data_window)
+plot(adx15, "15 dk ADX", display = display.data_window)
+plot(realDir != 0 ? bar_index - rEb : na, "Pozda Bar", display = display.data_window)
+plot(gate ? 1 : 0, "Giriş Kapısı Kapalı", display = display.data_window)
+plot(trDir, "1S Trend (BAT+BTC)", display = display.data_window)
+plot(whReady ? whState : na, "Balina kapısı (0 serbest / 1 long yok / 2 short yok / 3 ikisi)", display = display.data_window)
+plot(whPos, "Top trader pozisyon L/S", display = display.data_window)
+plot(whAcc, "Top trader hesap L/S", display = display.data_window)
+plot(whRatio, "Balina rasyosu (pozisyon / hesap)", display = display.data_window)
+plot(whZ, "Balina z 30 gün", display = display.data_window)
+plot(whZ24, "Balina z 24 saat", display = display.data_window)
+plot(adx1h, "BAT 1S ADX", display = display.data_window)
+plot(P.get(14), "15 DÖNÜŞ hacim oranı", display = display.data_window)
+plot(pUp, "P(24s sonra yukarı)", display = display.data_window)
+plot(P.get(0), "1 DÖNÜŞ 24s", display = display.data_window)
+plot(P.get(1), "2 DÖNÜŞ z4s", display = display.data_window)
+plot(P.get(2), "3 DÖNÜŞ z8s", display = display.data_window)
+plot(P.get(3), "4 DÖNÜŞ 4s uzama", display = display.data_window)
+plot(P.get(4), "5 DÖNÜŞ 3g uzama", display = display.data_window)
+plot(P.get(5), "6 DÖNÜŞ RSI14", display = display.data_window)
+plot(P.get(6), "7 DÖNÜŞ likidasyon", display = display.data_window)
+plot(P.get(7), "8 DÖNÜŞ OI kurulum", display = display.data_window)
+plot(P.get(8), "9 DÖNÜŞ hacim", display = display.data_window)
+plot(P.get(9), "10 DÖNÜŞ BTC göreli", display = display.data_window)
+plot(P.get(10), "11 TAKİP BTC lider", display = display.data_window)
+plot(P.get(11), "12 TAKİP %3", display = display.data_window)
+plot(P.get(12), "13 TAKİP %8", display = display.data_window)
+plot(P.get(13), "14 TAKİP günlük mom.", display = display.data_window)
+
+
+var table whTb = table.new(position.top_right, 1, 3)
+if barstate.islast
+    string feed = na(whPos) and na(whAcc) ? "İki seri de eksik" : na(whPos) ? "Pozisyon serisi eksik" : na(whAcc) ? "Hesap serisi eksik" : "Pozisyon / hesap = " + str.tostring(whRatio, "#.####")
+    string rule = (whEmbOk ? "GÖMÜLÜ · " : "TV · ") + (not whEmbOk and na(whRatio) ? "Balina filtresi devre dışı" : not whEmbOk and whRepeat ? "Oran tekrarlandı · bu saat filtre yok" : not whReady ? "Z-skoru bekleniyor" : whState == 3 ? "LONG ve SHORT engelli" : gateL ? "LONG engelli" : gateS ? "SHORT engelli" : "Giriş serbest")
+    string cover = na(whFirstPairTime) ? "Geçerli saat bekleniyor" : "Yüklü ilk çift " + str.format_time(whFirstPairTime, "yyyy-MM-dd HH:mm", "UTC") + " UTC"
+    string windows = " · z30g " + (na(whZ) ? "—" : str.tostring(whZ, "#.##")) + " · z24s " + (na(whZ24) ? "—" : str.tostring(whZ24, "#.##"))
+    whTb.cell(0, 0, feed, text_color = color.white, bgcolor = color.new(color.navy, 15), text_size = size.small)
+    whTb.cell(0, 1, rule + windows, text_color = color.white, bgcolor = whReady ? color.new(color.teal, 15) : color.new(color.maroon, 10), text_size = size.small)
+    whTb.cell(0, 2, cover, text_color = color.white, bgcolor = color.new(color.gray, 35), text_size = size.small)

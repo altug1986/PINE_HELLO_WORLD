@@ -1,0 +1,11 @@
+//@version=6
+// BALİNA VERİ TESTİ v2 — TradingView'in resmi "Request" kütüphanesinden Binance top trader oranlarını çeker.
+// v1 hatası (CE10165): ilk parametre sembol, metrik adı "metricName" ile ayrıca verilmeli.
+indicator("BALİNA VERİ TESTİ", overlay = false)
+import TradingView/Request/4 as req
+
+pos = req.cryptoDerivativeMetric(syminfo.tickerid, metricName = "Top Traders Long/Short Ratio Positions")
+acc = req.cryptoDerivativeMetric(syminfo.tickerid, metricName = "Top Traders Long/Short Ratio Accounts")
+
+plot(pos, "Top trader POZİSYON oranı", color.orange, 2)
+plot(acc, "Top trader HESAP oranı", color.aqua, 2)

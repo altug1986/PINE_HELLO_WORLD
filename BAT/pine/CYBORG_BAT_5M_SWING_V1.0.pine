@@ -1,0 +1,112 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════
+// CYBORG | BATUSDT.P 5M | SWING V1.0 — 24 SAAT AŞIRI UZAMA DÖNÜŞÜ
+// ───────────────────────────────────────────────────────────────────
+// REV LOG
+//  V1.0   : [REV-01] Sıfırdan BAT sistemi (PEPE V11.7 mimarisi BAT'ta çalışmadı: −1143$).
+//           Tetik: kapanışın 24 saat (288 bar) önceki kapanışa göre değişimi
+//             ≤ −%3.5 → LONG | ≥ +%5.5 → SHORT  (ortalamaya dönüş; yön ayrık eşik)
+//           Aynı yön sinyali sürdükçe süre sayacı yenilenir; son sinyalden 648 bar (2.25 gün) sonra FLAT.
+//           Taze sinyal yokken kapanışta −%3 zararda FLAT; sinyal sürüyorsa sanal giriş fiyatı yenilenir.
+//           Ters sinyal → doğrudan ters yön.
+// Seçim: 2020-02-13 → 2024-11-01 ilk dönem, 2.058 ayarlık ızgaranın PLATO MERKEZİ
+//        (ızgaranın %100'ü ilk dönemde kârlı). İkinci dönem 2024-11-01 → 2026-11-15 seçime girmedi.
+// Araştırma motoru (1m OHLC, 500$ sabit, %0.04, 1 tick) — TV'DE DOĞRULANMADI, Strategy Tester'da doğrula:
+//   Net 4771$ (%954) | 1326 işlem | PF 1.34 | Win %67 | Sharpe 1.36 | Sortino 1.66
+//   DD P95/P98/P99 282/350/376$ | MaxDD 416$ (kapanış) / 696$ (çubuk içi) | UPI 5.4 | pozitif ay %74
+//   İlk dönem 4046$ / ikinci dönem 827$ | 6 aylık blok 12/14 pozitif | stres (%0.08+3 tick) 4229$
+//   Monkey (yön, zaman, ADX, volatilite, BTC, 50g trend, kombine, çeyrek, OI seviye, hacim, likidite) p = 0.000
+//   MC bootstrap: zarar olasılığı 0, net P5 2900$ | yıl %: 20:192 21:201 22:108 23:211 24:87 25:239 26:−63
+//   UYARI: son 12 ay ≈ 0$ (2026 −315$). Tek işlem MAE en kötü −%114 (2021-10-28 pompa, short).
+// Test edilip EKLENMEYEN: OI kurulum/boşalma, hacim klimaks, BTC göreli, Z96, zarar serisi kesici,
+//   hacim + 10dk OI tatlı çıkışları (38 varyantın hiçbiri geçmedi), kilitli gerçek stop (%15: net −%21, P98 +%43).
+// WunderTrading soketleri YER TUTUCU: BOTADI / BOTKODU kısmını BAT botunun kendi soket metniyle değiştir.
+// ═══════════════════════════════════════════════════════════════════
+strategy("CYBORG | BAT 5M SWING V1.0",
+     overlay = true,
+     initial_capital = 500,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 0,
+     margin_long = 0,
+     margin_short = 0,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2000)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. PARAMETRELER                                                    [REV-01]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grp1 = "1. 24 SAAT UZAMA DÖNÜŞÜ"
+lookBars = input.int(288, "Uzama Penceresi (bar, 288 = 24 saat)", minval = 1, group = grp1)
+longPct  = input.float(3.5, "LONG: 24s Düşüş ≥ %", minval = 0.1, step = 0.5, group = grp1)
+shortPct = input.float(5.5, "SHORT: 24s Yükseliş ≥ %", minval = 0.1, step = 0.5, group = grp1)
+holdBars = input.int(648, "Son Sinyalden Sonra Tutma (bar)", minval = 1, group = grp1)
+slPct    = input.float(3.0, "Taze Sinyal Yokken Zarar Kesme % (kapanış)", minval = 0.1, step = 0.5, group = grp1)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TIMEFRAME GUARD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. SİNYAL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+dP  = na(close[lookBars]) ? na : (close / close[lookBars] - 1.0) * 100.0
+sig = na(dP) ? 0 : dP <= -longPct ? 1 : dP >= shortPct ? -1 : 0
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. SANAL POZİSYON (durum makinesi)
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var int   vPos = 0
+var float vEp  = na
+var int   vBar = 0
+
+if barstate.isconfirmed
+    if vPos != 0
+        if (close / vEp - 1.0) * vPos <= -slPct / 100.0 or bar_index - vBar >= holdBars
+            vPos := 0
+    if sig != 0
+        if vPos != sig
+            vPos := sig
+            vEp  := close
+            vBar := bar_index
+        else
+            vBar := bar_index
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. EMİRLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+realPos = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+goLong  = barstate.isconfirmed and vPos == 1 and realPos != 1
+goShort = barstate.isconfirmed and vPos == -1 and realPos != -1
+goFlat  = barstate.isconfirmed and vPos == 0 and realPos != 0
+
+if goLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goFlat
+    strategy.close_all(comment = "EXIT-ALL_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. GÖRSEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(goLong, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = color.lime, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(goShort, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = color.red, text = "SHORT", textcolor = color.white, size = size.tiny)
+plotshape(goFlat, title = "FLAT", style = shape.xcross, location = location.abovebar,
+     color = color.gray, size = size.tiny)
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 92) : strategy.position_size < 0 ? color.new(color.red, 92) : color.new(color.gray, 95))
+
+plot(dP, "24s Değişim %", display = display.data_window)
+plot(sig, "Sinyal", display = display.data_window)
+plot(vPos, "Sanal Pozisyon", display = display.data_window)
+plot(vEp, "Sanal Giriş Fiyatı", display = display.data_window)
+plot(bar_index - vBar, "Son Sinyalden Bar", display = display.data_window)

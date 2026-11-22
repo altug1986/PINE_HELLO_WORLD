@@ -1,0 +1,294 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════
+// CYBORG | BATUSDT.P 5M | ORKESTRA V3.0 — 4 BOYUTLU ZAMANLI PF ŞEFİ (8 enstrüman)
+// ───────────────────────────────────────────────────────────────────
+// REV LOG
+//  V1.0   : 24 saat aşırı uzama dönüşü. TV: 1331 işlem | Net 4744$ | PF 1.326 | MaxDD 456/676$ (baz)
+//  V2.x   : % hareket takip (3/3) + basit PF kapısı — kabul edilmedi.
+//  V3.0   : [REV-06] ORKESTRA mimarisi
+//    BOYUT 1 — UFUK (8 gölge enstrüman, her biri kendi sanal pozisyonunu taşır):
+//      TAKİP  en kısa %2/%2 | kısa %3/%3 | orta %5/%5 | uzun %8/%8   (dip/tepeden % dönüşte yön değiştir)
+//      DÖNÜŞ  en kısa 4s z-skor (z48 ±3.5, çıkış ∓0.5, %8, 288 bar)
+//             kısa 4s uzama (48 bar ±%6 ters, 48 bar tut, %10)
+//             orta 24s uzama (288 bar −%3.5 LONG / +%5.5 SHORT, 648 bar tut, %3)
+//             uzun 3g uzama (864 bar ±%12 ters, 1728 bar tut, %10)
+//    BOYUT 2 — ZAMAN: her enstrümanın gölge işlemleri için son 1 / 7 / 30 / 90 gün PF'i
+//    BOYUT 3 — YÖN/MİKTAR: pencere skoru = clip(ln((brüt kâr+1)/(brüt zarar+1)), ±1.5); pencerede < 6 işlem → 0
+//    BOYUT 4 — TEMPO: enstrüman skoru = 4 pencerenin eşit ağırlıklı ortalaması;
+//      ŞEF oyu = Σ(skor>0 olanların skor × yön) / Σ|skor|; ≥ +0.10 LONG, ≤ −0.10 SHORT, işaret dönünce FLAT,
+//      yeni yön 6 ardışık bar teyitle.
+//    Seçim: ilk dönem (2020-02-13 → 2024-11-01), 720 + 1.920 ayar, şart ilk dönemde 1300–1800 işlem.
+//    2. tur (enstrüman çıkar/değiştir, 24s taban ağırlık, yeniden ayar) bazı +%6 ile geçemedi → bu sürüm 1. tur.
+//   Araştırma motoru (500$ sabit, %0.04, 1 tick) — TV'DE DOĞRULANMADI:
+//     Net 2755$ (%551) | 2580 işlem | PF 1.145 | Win %48 | Sharpe 0.88 | Sortino 1.13
+//     DD P95/P98/P99 359/441/554$ | MaxDD 602$ (kapanış) / 649$ (çubuk içi) | pozitif ay %60
+//     İlk dönem 2238$ / ikinci dönem 522$ | son 12 ay −341$ | 6 aylık blok 10/14 | komisyon 1032$
+//     yıl %: 20:99 21:110 22:18 23:175 24:118 25:121 26:−88
+//     İşlem içi ters gidiş P90/P95/P99 −%6.5 / −%10.7 / −%23.8 (V1.0: −%14 / −%20.4 / −%35.9)
+//     Stres (%0.08 + 3 tick) 1494$ (ikinci dönem 83$) | monkey max p 0.002 | MC zarar olasılığı %0.8, net P5 797$
+//   KARŞILAŞTIRMA: V1.0 aynı dönemde 4771$, PF 1.34, Sharpe 1.36. ORKESTRA daha dengeli ama daha az kârlı.
+//   Python işaretçi kopyası ile vektör motor: 0 bar uyuşmazlık.
+// WunderTrading soketleri YER TUTUCU: BOTADI / BOTKODU kısmını BAT botunun kendi soket metniyle değiştir.
+// ═══════════════════════════════════════════════════════════════════
+strategy("CYBORG | BAT 5M ORKESTRA V3.0",
+     overlay = true,
+     initial_capital = 500,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 0,
+     margin_long = 0,
+     margin_short = 0,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2000)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. PARAMETRELER                                                    [REV-06]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grp1 = "1. TAKİP ENSTRÜMANLARI (%)"
+tk1 = input.float(2.0, "En Kısa Dönüş %", step = 0.5, group = grp1)
+tk2 = input.float(3.0, "Kısa Dönüş %", step = 0.5, group = grp1)
+tk3 = input.float(5.0, "Orta Dönüş %", step = 0.5, group = grp1)
+tk4 = input.float(8.0, "Uzun Dönüş %", step = 0.5, group = grp1)
+
+grp2 = "2. DÖNÜŞ ENSTRÜMANLARI"
+zLen  = input.int(48, "En Kısa: Z Pencere", minval = 2, group = grp2)
+zIn   = input.float(3.5, "En Kısa: Z Giriş", group = grp2)
+zOut  = input.float(0.5, "En Kısa: Z Çıkış", group = grp2)
+f4Pct = input.float(6.0, "Kısa: 48 bar Hareket %", group = grp2)
+dL    = input.float(3.5, "Orta: 24s LONG Düşüş %", group = grp2)
+dS    = input.float(5.5, "Orta: 24s SHORT Yükseliş %", group = grp2)
+f3Pct = input.float(12.0, "Uzun: 864 bar Hareket %", group = grp2)
+
+grp3 = "3. ŞEF"
+minCnt = input.int(6, "Pencere Min Gölge İşlem", minval = 1, group = grp3)
+onThr  = input.float(0.10, "Şef Oy Eşiği", step = 0.01, group = grp3)
+offThr = input.float(0.0, "Şef Çıkış Eşiği", step = 0.01, group = grp3)
+tempo  = input.int(6, "Tempo: Yeni Yön Teyit Bar", minval = 1, group = grp3)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TIMEFRAME GUARD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. TİPLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// % dönüş takipçisi
+type Rev
+    int   v  = 0
+    float hi = na
+    float lo = na
+
+method step(Rev this, float c, float pct) =>
+    if na(this.hi)
+        this.hi := c
+        this.lo := c
+    if this.v >= 0
+        this.hi := math.max(this.hi, c)
+        if c <= this.hi * (1.0 - pct / 100.0)
+            this.v  := -1
+            this.lo := c
+    if this.v <= 0
+        this.lo := math.min(this.lo, c)
+        if c >= this.lo * (1.0 + pct / 100.0)
+            this.v  := 1
+            this.hi := c
+    this.v
+
+// sinyal + süre + kapanış stopu (uzama dönüşleri)
+type Ent
+    int   v  = 0
+    float e  = na
+    int   vb = 0
+
+method step(Ent this, int s, float c, int bi, int hold, float sl) =>
+    if this.v != 0
+        if (c / this.e - 1.0) * this.v <= -sl / 100.0 or bi - this.vb >= hold
+            this.v := 0
+    if s != 0
+        if this.v != s
+            this.v  := s
+            this.e  := c
+            this.vb := bi
+        else
+            this.vb := bi
+    this.v
+
+// gölge işlem defteri + 4 zaman penceresi
+type Book
+    array<int>   xb
+    array<float> pl
+    array<int>   ptr
+    array<float> gp
+    array<float> gl
+    array<float> cn
+    float        ep   = na
+    int          prev = 0
+
+newBook() =>
+    Book.new(array.new_int(), array.new_float(), array.from(0, 0, 0, 0), array.from(0.0, 0.0, 0.0, 0.0), array.from(0.0, 0.0, 0.0, 0.0), array.from(0.0, 0.0, 0.0, 0.0))
+
+method record(Book this, int s, float c, int bi) =>
+    if s != this.prev
+        if this.prev != 0
+            px  = c - syminfo.mintick * this.prev
+            qty = 500.0 / this.ep
+            p   = (px - this.ep) * qty * this.prev - 0.0004 * qty * (this.ep + px)
+            this.xb.push(bi)
+            this.pl.push(p)
+            for w = 0 to 3
+                if p > 0
+                    this.gp.set(w, this.gp.get(w) + p)
+                else
+                    this.gl.set(w, this.gl.get(w) - p)
+                this.cn.set(w, this.cn.get(w) + 1.0)
+        this.ep   := c + syminfo.mintick * s
+        this.prev := s
+    true
+
+method score(Book this, int bi, array<int> wBars, int minC) =>
+    sc = 0.0
+    for w = 0 to 3
+        lim = bi - wBars.get(w)
+        p   = this.ptr.get(w)
+        while p < this.xb.size() and this.xb.get(p) <= lim
+            pv = this.pl.get(p)
+            if pv > 0
+                this.gp.set(w, this.gp.get(w) - pv)
+            else
+                this.gl.set(w, this.gl.get(w) + pv)
+            this.cn.set(w, this.cn.get(w) - 1.0)
+            p += 1
+        this.ptr.set(w, p)
+        if this.cn.get(w) >= minC
+            lp = math.log((this.gp.get(w) + 1.0) / (this.gl.get(w) + 1.0))
+            sc += 0.25 * math.max(-1.5, math.min(1.5, lp))
+    sc
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. ENSTRÜMAN SİNYALLERİ
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+zB  = ta.sma(close, zLen)
+zD  = ta.stdev(close, zLen)
+zV  = not na(zD) and zD > 0 ? (close - zB) / zD : na
+m48  = na(close[48])  ? na : (close / close[48] - 1.0) * 100.0
+m288 = na(close[288]) ? na : (close / close[288] - 1.0) * 100.0
+m864 = na(close[864]) ? na : (close / close[864] - 1.0) * 100.0
+s4s = na(m48)  ? 0 : m48 <= -f4Pct ? 1 : m48 >= f4Pct ? -1 : 0
+s24 = na(m288) ? 0 : m288 <= -dL ? 1 : m288 >= dS ? -1 : 0
+s3g = na(m864) ? 0 : m864 <= -f3Pct ? 1 : m864 >= f3Pct ? -1 : 0
+
+var Rev r1 = Rev.new()
+var Rev r2 = Rev.new()
+var Rev r3 = Rev.new()
+var Rev r4 = Rev.new()
+var Ent e4s = Ent.new()
+var Ent e24 = Ent.new()
+var Ent e3g = Ent.new()
+var int   vZ  = 0
+var float vZe = na
+var int   vZb = 0
+var array<Book> books = array.from(newBook(), newBook(), newBook(), newBook(), newBook(), newBook(), newBook(), newBook())
+var array<int>  wBars = array.from(288, 2016, 8640, 25920)               // 1 / 7 / 30 / 90 gün
+
+var int   pos  = 0
+var int   run  = 0
+var int   last = 0
+var float cond = 0.0
+var array<float> scs  = array.new_float(8, 0.0)
+var array<int>   dirs = array.new_int(8, 0)
+
+if barstate.isconfirmed
+    // 4S Z-SKOR: çıkış barında yeni giriş yok
+    if not na(zV)
+        if vZ != 0
+            if (close / vZe - 1.0) * vZ <= -8.0 / 100.0 or bar_index - vZb >= 288 or (vZ > 0 and zV > zOut) or (vZ < 0 and zV < -zOut)
+                vZ := 0
+        else
+            if zV < -zIn
+                vZ  := 1
+                vZe := close
+                vZb := bar_index
+            else if zV > zIn
+                vZ  := -1
+                vZe := close
+                vZb := bar_index
+    dirs.set(0, r1.step(close, tk1))
+    dirs.set(1, r2.step(close, tk2))
+    dirs.set(2, r3.step(close, tk3))
+    dirs.set(3, r4.step(close, tk4))
+    dirs.set(4, vZ)
+    dirs.set(5, e4s.step(s4s, close, bar_index, 48, 10.0))
+    dirs.set(6, e24.step(s24, close, bar_index, 648, 3.0))
+    dirs.set(7, e3g.step(s3g, close, bar_index, 1728, 10.0))
+    // gölge defterleri + skorlar
+    num = 0.0
+    tot = 0.0
+    for j = 0 to 7
+        bk = books.get(j)
+        bk.record(dirs.get(j), close, bar_index)
+        sc = bk.score(bar_index, wBars, minCnt)
+        scs.set(j, sc)
+        if sc > 0
+            num += sc * dirs.get(j)
+        tot += math.abs(sc)
+    cond := tot > 0 ? num / tot : 0.0
+    // ŞEF: histerezis + tempo
+    want = pos
+    if pos != 0 and cond * pos < offThr
+        want := 0
+    if cond >= onThr
+        want := 1
+    else if cond <= -onThr
+        want := -1
+    if want != 0 and want != pos
+        run  := want == last ? run + 1 : 1
+        last := want
+        if run < tempo
+            want := pos == 0 or cond * pos >= offThr ? pos : 0
+    else
+        run  := 0
+        last := 0
+    pos := want
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. EMİRLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+realPos = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+goLong  = barstate.isconfirmed and pos == 1 and realPos != 1
+goShort = barstate.isconfirmed and pos == -1 and realPos != -1
+goFlat  = barstate.isconfirmed and pos == 0 and realPos != 0
+
+if goLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goFlat
+    strategy.close_all(comment = "EXIT-ALL_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. GÖRSEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(goLong, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = color.lime, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(goShort, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = color.red, text = "SHORT", textcolor = color.white, size = size.tiny)
+plotshape(goFlat, title = "FLAT", style = shape.xcross, location = location.abovebar,
+     color = color.gray, size = size.tiny)
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 92) : strategy.position_size < 0 ? color.new(color.red, 92) : color.new(color.gray, 95))
+
+plot(cond, "Şef Oyu", display = display.data_window)
+plot(scs.get(0), "Skor TAKİP %2", display = display.data_window)
+plot(scs.get(1), "Skor TAKİP %3", display = display.data_window)
+plot(scs.get(2), "Skor TAKİP %5", display = display.data_window)
+plot(scs.get(3), "Skor TAKİP %8", display = display.data_window)
+plot(scs.get(4), "Skor DÖNÜŞ z4s", display = display.data_window)
+plot(scs.get(5), "Skor DÖNÜŞ 4s", display = display.data_window)
+plot(scs.get(6), "Skor DÖNÜŞ 24s", display = display.data_window)
+plot(scs.get(7), "Skor DÖNÜŞ 3g", display = display.data_window)

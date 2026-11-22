@@ -1,0 +1,166 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════
+// CYBORG | BATUSDT.P 5M | SWING V1.1 — ÇOK MOTORLU ORTALAMAYA DÖNÜŞ (2.900+ işlem)
+// ───────────────────────────────────────────────────────────────────
+// REV LOG
+//  V1.0   : [REV-01] 24 saat aşırı uzama dönüşü (≤ −%3.5 LONG / ≥ +%5.5 SHORT, 648 bar tutma, taze sinyal yokken −%3).
+//           TV: 1331 işlem | Net 4744$ (%949) | PF 1.326 | MaxDD 456$ (kapanış) / 676$ (çubuk içi)
+//           motor eşleşmesi 1318/1328 giriş (%99.2), net farkı −%0.5
+//  V1.1   : [REV-02] Öncelik zinciri: 4 SAAT Z-SKOR > 24 SAAT UZAMA > 4 SAAT UZAMA
+//             4S Z-SKOR : z = (kapanış − SMA48) / STDEV48; z < −3.5 LONG, z > +3.5 SHORT;
+//                         çıkış z > +0.5 (long) / z < −0.5 (short), kapanışta −%8, 288 bar
+//             24S UZAMA : 288 bar değişim ≤ −%6 LONG / ≥ +%5.5 SHORT; son sinyalden 144 bar tut, kapanışta −%8
+//             4S UZAMA  : 48 bar değişim ≤ −%8 LONG / ≥ +%8 SHORT; son sinyalden 192 bar tut, kapanışta −%8
+//           Seçim: ilk dönem (2020-02-13 → 2024-11-01), 3.000 ayarlık rastgele + yerel arama, şart ≥ 1850 işlem.
+//   V1.1 araştırma motoru (500$ sabit, %0.04, 1 tick) — TV'DE DOĞRULANMADI:
+//        Net 4129$ (%826) | 2930 işlem | PF 1.268 | Win %64.8 | Sharpe 1.25 | Sortino 1.35
+//        DD P95/P98/P99 316/421/564$ | MaxDD 736$ (kapanış) / 762$ (çubuk içi) | UPI 3.9 | pozitif ay %66
+//        İşlem içi ters gidiş: işlemlerin %10'u −%7.5'ten, %5'i −%11.9'dan derin (V1.0: −%14 / −%20.4)
+//        Stres (%0.08 + 3 tick) 2677$ | 6 aylık blok 10/14 | yıl %: 20:218 21:318 22:112 23:122 24:65 25:101 26:−110
+//   UYARI: İKİNCİ DÖNEM −47$ (V1.0 +827$), SON 12 AY −453$ (V1.0 −15$). Kabul şartını GEÇMEDİ;
+//          işlem sayısı ve ters gidiş dengesi için kullanıcı isteğiyle verildi. Baz hâlâ V1.0.
+// WunderTrading soketleri YER TUTUCU: BOTADI / BOTKODU kısmını BAT botunun kendi soket metniyle değiştir.
+// ═══════════════════════════════════════════════════════════════════
+strategy("CYBORG | BAT 5M SWING V1.1",
+     overlay = true,
+     initial_capital = 500,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 0,
+     margin_long = 0,
+     margin_short = 0,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2000)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. PARAMETRELER                                                    [REV-02]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grp1 = "1. 4 SAAT Z-SKOR (öncelik 1)"
+zLen   = input.int(48, "Z Pencere (bar)", minval = 2, group = grp1)
+zEntry = input.float(3.5, "Z Giriş (long < −x, short > +x)", step = 0.25, group = grp1)
+zExit  = input.float(0.5, "Z Çıkış (long > +x, short < −x)", step = 0.25, group = grp1)
+zSL    = input.float(8.0, "Z Kapanış Stopu %", minval = 0.1, group = grp1)
+zBars  = input.int(288, "Z Maks Bar", minval = 1, group = grp1)
+
+grp2 = "2. 24 SAAT UZAMA (öncelik 2)"
+dLook  = input.int(288, "24s Pencere (bar)", minval = 1, group = grp2)
+dLong  = input.float(6.0, "24s LONG: Düşüş ≥ %", step = 0.5, group = grp2)
+dShort = input.float(5.5, "24s SHORT: Yükseliş ≥ %", step = 0.5, group = grp2)
+dHold  = input.int(144, "24s Son Sinyalden Tutma (bar)", minval = 1, group = grp2)
+dSL    = input.float(8.0, "24s Kapanış Stopu %", minval = 0.1, group = grp2)
+
+grp3 = "3. 4 SAAT UZAMA (öncelik 3)"
+hLook  = input.int(48, "4s Pencere (bar)", minval = 1, group = grp3)
+hPct   = input.float(8.0, "4s Hareket ≥ % (ters yönde gir)", step = 0.5, group = grp3)
+hHold  = input.int(192, "4s Son Sinyalden Tutma (bar)", minval = 1, group = grp3)
+hSL    = input.float(8.0, "4s Kapanış Stopu %", minval = 0.1, group = grp3)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TIMEFRAME GUARD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. SİNYALLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+zBasis = ta.sma(close, zLen)
+zDev   = ta.stdev(close, zLen)
+zVal   = not na(zDev) and zDev > 0 ? (close - zBasis) / zDev : na
+
+dP   = na(close[dLook]) ? na : (close / close[dLook] - 1.0) * 100.0
+dSig = na(dP) ? 0 : dP <= -dLong ? 1 : dP >= dShort ? -1 : 0
+hP   = na(close[hLook]) ? na : (close / close[hLook] - 1.0) * 100.0
+hSig = na(hP) ? 0 : hP <= -hPct ? 1 : hP >= hPct ? -1 : 0
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. SANAL MOTORLAR
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var int   vZ  = 0
+var float vZEp = na
+var int   vZBar = 0
+var int   vD  = 0
+var float vDEp = na
+var int   vDBar = 0
+var int   vH  = 0
+var float vHEp = na
+var int   vHBar = 0
+
+if barstate.isconfirmed
+    // 4S Z-SKOR: çıkış barında yeni giriş yok
+    if not na(zVal)
+        if vZ != 0
+            if (close / vZEp - 1.0) * vZ <= -zSL / 100.0 or bar_index - vZBar >= zBars or (vZ > 0 and zVal > zExit) or (vZ < 0 and zVal < -zExit)
+                vZ := 0
+        else
+            if zVal < -zEntry
+                vZ    := 1
+                vZEp  := close
+                vZBar := bar_index
+            else if zVal > zEntry
+                vZ    := -1
+                vZEp  := close
+                vZBar := bar_index
+    // 24S UZAMA
+    if vD != 0
+        if (close / vDEp - 1.0) * vD <= -dSL / 100.0 or bar_index - vDBar >= dHold
+            vD := 0
+    if dSig != 0
+        if vD != dSig
+            vD    := dSig
+            vDEp  := close
+            vDBar := bar_index
+        else
+            vDBar := bar_index
+    // 4S UZAMA
+    if vH != 0
+        if (close / vHEp - 1.0) * vH <= -hSL / 100.0 or bar_index - vHBar >= hHold
+            vH := 0
+    if hSig != 0
+        if vH != hSig
+            vH    := hSig
+            vHEp  := close
+            vHBar := bar_index
+        else
+            vHBar := bar_index
+
+target = vZ != 0 ? vZ : vD != 0 ? vD : vH
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. EMİRLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+realPos = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+goLong  = barstate.isconfirmed and target == 1 and realPos != 1
+goShort = barstate.isconfirmed and target == -1 and realPos != -1
+goFlat  = barstate.isconfirmed and target == 0 and realPos != 0
+
+if goLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goFlat
+    strategy.close_all(comment = "EXIT-ALL_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. GÖRSEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(goLong, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = color.lime, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(goShort, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = color.red, text = "SHORT", textcolor = color.white, size = size.tiny)
+plotshape(goFlat, title = "FLAT", style = shape.xcross, location = location.abovebar,
+     color = color.gray, size = size.tiny)
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 92) : strategy.position_size < 0 ? color.new(color.red, 92) : color.new(color.gray, 95))
+
+plot(zVal, "4s Z-Skor", display = display.data_window)
+plot(dP, "24s Değişim %", display = display.data_window)
+plot(hP, "4s Değişim %", display = display.data_window)
+plot(vZ, "Sanal Z", display = display.data_window)
+plot(vD, "Sanal 24s", display = display.data_window)
+plot(vH, "Sanal 4s", display = display.data_window)
+plot(target, "Hedef", display = display.data_window)

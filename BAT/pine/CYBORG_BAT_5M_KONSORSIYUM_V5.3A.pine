@@ -1,0 +1,383 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════
+// CYBORG | BATUSDT.P 5M | KONSORSİYUM V5.3A — İKİ DÖNEMDE TUTARLI İYİLEŞTİRME
+// ───────────────────────────────────────────────────────────────────
+// REV LOG
+//  V1.0   : 24 saat aşırı uzama dönüşü. TV: 1331 işlem | Net 4744$ | PF 1.326 (baz)
+//  V3.0   : ORKESTRA. TV: 2588 işlem | Net 2805$ | PF 1.147
+//  V5.0   : [REV-08] KONSORSİYUM
+//    14 BİLEŞEN (her biri kendi sanal pozisyonunu taşır, −1/0/+1):
+//      1 DÖNÜŞ 24s (V1.0)          2 DÖNÜŞ z 4s (z48 ±3.5)        3 DÖNÜŞ z 8s (z96 ±3.5)
+//      4 DÖNÜŞ 4s uzama (±%6)      5 DÖNÜŞ 3g uzama (±%12)       6 DÖNÜŞ RSI14 (20/80, çıkış 50)
+//      7 DÖNÜŞ likidasyon (6 bar fiyat ∓%1.5 & OI −%1.5)          8 DÖNÜŞ OI kurulum (24s ±%5 & OI +%5)
+//      9 DÖNÜŞ hacim klimaks (24s ±%5 & hacim 1.3×)               10 DÖNÜŞ BTC göreli (24s BAT−BTC ±%6)
+//      11 TAKİP BTC lider (BTC 3 bar ±%2, BAT geride)             12 TAKİP %3   13 TAKİP %8
+//      14 TAKİP günlük momentum (30 gün ±%5, önceki gün)
+//    OY: skor = Σ ağırlık × pozisyon / Σ|ağırlık| ; skor ≥ +eşik LONG, ≤ −eşik SHORT, işaret dönünce FLAT.
+//    OLASILIK (V5.0 kalibrasyonu, V5.1 için yaklaşık): P(24 saat sonra yukarı) = 1 / (1 + e^−(−0.0247 + 0.7649 × skor))  (ilk dönem saatlik kalibrasyon, sadece gösterge)
+//    AĞIRLIK SEÇİMİ: ilk dönem (2020-02-13 → 2024-11-01) iki yarısındaki skorların MİNİMUMU, 7 bağımsız arama × 1500 deneme.
+//      Varsayılan = arama içi en iyi tek çözüm (tohum 6): 3 / 3 / 0.5 / 0 / 0 / 1 / 3 / 3 / 0.5 / 1 / 0.5 / 0.5 / 2 / 0, eşik 0.05
+//      Alternatif = 7 çözümün torbası: 3 / 1.95 / 0.15 / 1.18 / 0 / 1.35 / 2.07 / 2.45 / 1.01 / 1.59 / 1.29 / 1.06 / 1.51 / 0.43, eşik 0.03
+//   Araştırma motoru (500$ sabit, %0.04, 1 tick) — TV'DE DOĞRULANMADI:
+//     VARSAYILAN: Net 6233$ (%1247) | 2750 işlem | PF 1.353 | Sharpe 1.72 | Sortino 2.20
+//       DD P95/P98/P99 389/484/529$ | MaxDD 588$ (kapanış) / 682$ (çubuk içi) | pozitif ay %70 | 6 aylık blok 12/14
+//       İlk dönem 5887$ / ikinci dönem 407$ | son 12 ay −315$ | komisyon 1100$ | ters gidiş P90/P95 −%8.7 / −%13.0
+//       yıl %: 20:194 21:384 22:112 23:254 24:236 25:154 26:−75 | stres (%0.08+3 tick) 4937$ (ikinci dönem −49$)
+//       monkey (11 aile) p 0.000 | MC zarar olasılığı 0, net P5 4239$
+//     TORBA: Net 5448$ | 2819 işlem | PF 1.292 | Sharpe 1.48 | DD P98 346$ | ikinci dönem 620$ | stres ikinci dönem +169$
+//   UYARI: V1.0'a göre fazladan kâr İLK DÖNEMDE (ağırlıklar orada seçildi). İkinci dönem V1.0 827$ > torba 620$ > varsayılan 407$.
+//  V5.0 TV: 2799 işlem | Net 6070$ | PF 1.333 | MaxDD 629 / 686$ | motor eşleşmesi %93.4
+//  V5.1   : [REV-09] GENEL TARAMA (133 tek değişiklik + 13.718 çoklu varyant). +%6 kuralı ile kabul edilen yok;
+//           net ≥ 6000$ ve P98 ≤ baz olanlar içinden İKİ DÖNEMDE EN TUTARLI ve Ulcer'i en düşük olan seçildi:
+//           ağırlık 3 (z 8s) 0.5→4 | ağırlık 11 (BTC lider) 0.5→4 | ağırlık 14 (günlük mom.) 0→0.5 | giriş eşiği 0.05→0.08
+//           1 V1.0 SHORT eşiği %5.5→%6 | 3 z 8s çıkış 0.5→0 | 4 uzama %6→%8 | 7 likidasyon OI −%1.5→−%2, RSI7 çıkış 60→65
+//           8 OI kurulum fiyat %5→%4, OI +%5→+%6, tutma 288→144 | 9 hacim klimaks 1.3→1.5
+//   V5.1 motor: Net 6372$ (%1274) | 2355 işlem | PF 1.394 | Sharpe 1.89 | Sortino 2.59 | Calmar 2.25
+//     DD P95/P98/P99 217/271/296$ | MaxDD 419$ (kapanış) / 532$ (çubuk içi) | Ulcer 107.6$ | UPI 8.8 | pozitif ay %74
+//     İlk dönem 4684$ / ikinci dönem 1688$ | son 12 ay +563$ | yıl %: 20:113 21:450 22:42 23:218 24:158 25:261 26:32
+//     6 aylık blok 13/14 (en kötü −5$) | OI 1/2 bar gecikme 6268/6277$ | stres (%0.08+3 tick) 5210$ (ikinci dönem 1311$)
+//     monkey (11 aile) p 0.000 | MC zarar 0, net P5 4406$, DD P95 838$ | ters gidiş P90/P95 −%9.2 / −%13.3
+//   UYARI: seçimde ikinci dönem de kullanıldı (tutarlılık şartı) → bağımsız doğrulama yok; TV + ileri test şart.
+//  V5.2   : [REV-10] POZ İÇİ ZARAR SINIRI + ÇIKIŞ SONRASI DÜZENLİ GERİ GİRİŞ
+//           açık pozisyon kapanışta −%8'e inerse FLAT; aynı yöne geri giriş ancak stop sonrası en uç fiyattan %3 tepki gelince
+//           (konsorsiyum yön değiştirirse kilit kalkar). 2.009 varyant tarandı (stop %3–8, 4 geri giriş tipi,
+//           BTC 2 saatlik ADX 20–35 filtresi, BAT 3 saatlik OI %1–5 filtresi): BTC ADX ve OI filtreleri eklenmedi (zarar / nötr).
+//   V5.2 motor: Net 6328$ (%1266) | 2661 işlem | PF 1.300 | Sharpe 1.91 | Sortino 2.93 | Calmar 2.16 | 335 stop
+//     DD P95/P98/P99 227/267/303$ | MaxDD 435$ (kapanış) / 504$ (çubuk içi) | Ulcer 111.8$ | UPI 8.4 | eğri R² 0.958
+//     İŞLEM İÇİ TERS GİDİŞ P90/P95/P99 −%8.4 / −%8.9 / −%11.8 (V5.1: −%9.2 / −%13.3 / −%27.4)
+//     İlk dönem 4579$ / ikinci dönem 1750$ | son 12 ay +482$ | yıl %: 20:69 21:505 22:31 23:194 24:184 25:262 26:21
+//     6 aylık blok 12/14 | stres 5019$ (ikinci dönem 1324$) | monkey p 0.000 | MC zarar 0, net P5 4145$
+//     Komşular (stop %7–10 × tepki %2–4): net 5785–6344$, P99 ters gidiş −%10.4 ile −%13.3 arası
+//  V5.3A  : [REV-11] ORTAK GENEL TARAMA (konsorsiyum + zarar sınırı birlikte, 11.863 varyant). İKİ DÖNEMDE DE V5.2'den iyi olan 63 varyantın en kârlısı:
+//           ağırlık 7 (likidasyon) 3→1 | 2 z 4s giriş ±3.5→±4 | 6 RSI14 çıkış 50→45/55 | zarar sınırı %8→%7 | geri giriş tepkisi %3→%4
+//   V5.3A motor: Net 6951$ (%1390) | 2775 işlem | PF 1.318 | Sharpe 2.10 | Sortino 3.35 | Calmar 2.98 | eğri R² 0.976
+//     DD P95/P98/P99 210/270/297$ | MaxDD 346$ (kapanış) / 393$ (çubuk içi) | Ulcer 96.2$ | UPI 10.7 | pozitif ay %68
+//     İlk dönem 4868$ / ikinci dönem 2081$ | son 12 ay +773$ | yıl %: 20:84 21:473 22:17 23:235 24:240 25:293 26:47
+//     İŞLEM İÇİ TERS GİDİŞ P90/P95/P99 −%7.5 / −%8.1 / −%10.4 | 6 aylık blok 13/14 | OI 1/2 bar gecikme 6770/6859$
+//     stres 5585$ (ikinci dönem 1650$) | monkey p 0.000 | MC zarar 0, net P5 4839$, DD P95 797$
+// OI ve BTC sembolleri yüklenmezse bileşen 7, 8, 10, 11 sıfır kalır.
+// WunderTrading soketleri YER TUTUCU: BOTADI / BOTKODU kısmını BAT botunun kendi soket metniyle değiştir.
+// ═══════════════════════════════════════════════════════════════════
+strategy("CYBORG | BAT 5M KONSORSİYUM V5.3A",
+     overlay = true,
+     initial_capital = 500,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 0,
+     margin_long = 0,
+     margin_short = 0,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2000)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. PARAMETRELER                                                    [REV-08]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grp1 = "1. BİLEŞEN AĞIRLIKLARI"
+w1  = input.float(3.0, "1 DÖNÜŞ 24s (V1.0)", step = 0.05, group = grp1)
+w2  = input.float(3.0, "2 DÖNÜŞ z 4s", step = 0.05, group = grp1)
+w3  = input.float(4.0, "3 DÖNÜŞ z 8s", step = 0.05, group = grp1)
+w4  = input.float(0.0, "4 DÖNÜŞ 4s uzama", step = 0.05, group = grp1)
+w5  = input.float(0.0, "5 DÖNÜŞ 3g uzama", step = 0.05, group = grp1)
+w6  = input.float(1.0, "6 DÖNÜŞ RSI14", step = 0.05, group = grp1)
+w7  = input.float(1.0, "7 DÖNÜŞ likidasyon (OI)", step = 0.05, group = grp1)
+w8  = input.float(3.0, "8 DÖNÜŞ OI kurulum", step = 0.05, group = grp1)
+w9  = input.float(0.5, "9 DÖNÜŞ hacim klimaks", step = 0.05, group = grp1)
+w10 = input.float(1.0, "10 DÖNÜŞ BTC göreli", step = 0.05, group = grp1)
+w11 = input.float(4.0, "11 TAKİP BTC lider", step = 0.05, group = grp1)
+w12 = input.float(0.5, "12 TAKİP %3", step = 0.05, group = grp1)
+w13 = input.float(2.0, "13 TAKİP %8", step = 0.05, group = grp1)
+w14 = input.float(0.5, "14 TAKİP günlük momentum", step = 0.05, group = grp1)
+
+grp2 = "2. OY"
+onThr  = input.float(0.08, "Giriş Eşiği (skor)", step = 0.01, group = grp2)
+offThr = input.float(0.0, "Çıkış Eşiği (skor yön × pozisyon <)", step = 0.01, group = grp2)
+
+grp4 = "4. POZ İÇİ ZARAR SINIRI"                                    // [REV-10]
+stopPct = input.float(7.0, "Poz İçi Zarar Sınırı % (kapanış)", minval = 0.5, step = 0.5, group = grp4)
+reArm   = input.float(4.0, "Stop Sonrası Geri Giriş: Uçtan Tepki %", minval = 0.1, step = 0.5, group = grp4)
+
+grp3 = "3. DIŞ VERİ"
+oiSym  = input.symbol("BINANCE:BATUSDT.P_OI", "BAT OI Sembol", group = grp3)
+btcSym = input.symbol("BINANCE:BTCUSDT.P", "BTC Sembol", group = grp3)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TIMEFRAME GUARD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. TİPLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// sinyal + süre + kapanış stopu
+type Ent
+    int   v  = 0
+    float e  = na
+    int   vb = 0
+
+method step(Ent this, int s, float c, int bi, int hold, float sl) =>
+    if this.v != 0
+        if (c / this.e - 1.0) * this.v <= -sl / 100.0 or bi - this.vb >= hold
+            this.v := 0
+    if s != 0
+        if this.v != s
+            this.v  := s
+            this.e  := c
+            this.vb := bi
+        else
+            this.vb := bi
+    this.v
+
+// osilatör dönüşü (çıkış barında yeni giriş yok)
+type Osc
+    int   v  = 0
+    float e  = na
+    int   vb = 0
+
+method step(Osc this, float x, float c, int bi, float lo, float hi, float exL, float exS, float sl, int mb) =>
+    if not na(x)
+        if this.v != 0
+            if (c / this.e - 1.0) * this.v <= -sl / 100.0 or bi - this.vb >= mb or (this.v > 0 and x > exL) or (this.v < 0 and x < exS)
+                this.v := 0
+        else
+            if x < lo
+                this.v  := 1
+                this.e  := c
+                this.vb := bi
+            else if x > hi
+                this.v  := -1
+                this.e  := c
+                this.vb := bi
+    this.v
+
+// % dönüş takipçisi
+type Rev
+    int   v  = 0
+    float hi = na
+    float lo = na
+
+method step(Rev this, float c, float pct) =>
+    if na(this.hi)
+        this.hi := c
+        this.lo := c
+    if this.v >= 0
+        this.hi := math.max(this.hi, c)
+        if c <= this.hi * (1.0 - pct / 100.0)
+            this.v  := -1
+            this.lo := c
+    if this.v <= 0
+        this.lo := math.min(this.lo, c)
+        if c >= this.lo * (1.0 + pct / 100.0)
+            this.v  := 1
+            this.hi := c
+    this.v
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. VERİ VE SİNYALLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+oiRaw = request.security(oiSym, timeframe.period, close, gaps = barmerge.gaps_off, ignore_invalid_symbol = true)
+oiP   = oiRaw[1]
+btc   = request.security(btcSym, timeframe.period, close, gaps = barmerge.gaps_off)
+f_dm() =>
+    m = (close / close[30] - 1.0) * 100.0
+    na(m) ? 0 : m >= 5.0 ? 1 : m <= -5.0 ? -1 : 0
+dmSig = request.security(syminfo.tickerid, "D", f_dm()[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+
+d288 = na(close[288]) ? na : (close / close[288] - 1.0) * 100.0
+d48  = na(close[48])  ? na : (close / close[48]  - 1.0) * 100.0
+d864 = na(close[864]) ? na : (close / close[864] - 1.0) * 100.0
+sV1  = na(d288) ? 0 : d288 <= -3.5 ? 1 : d288 >= 6.0 ? -1 : 0                          // [REV-09] 5.5→6
+s4s  = na(d48)  ? 0 : d48 <= -8.0 ? 1 : d48 >= 8.0 ? -1 : 0                            // [REV-09] 6→8
+s3g  = na(d864) ? 0 : d864 <= -12.0 ? 1 : d864 >= 12.0 ? -1 : 0
+
+zB48 = ta.sma(close, 48)
+zD48 = ta.stdev(close, 48)
+z48  = not na(zD48) and zD48 > 0 ? (close - zB48) / zD48 : na
+zB96 = ta.sma(close, 96)
+zD96 = ta.stdev(close, 96)
+z96  = not na(zD96) and zD96 > 0 ? (close - zB96) / zD96 : na
+r14  = ta.rsi(close, 14)
+r7   = ta.rsi(close, 7)
+
+dO288 = not na(oiP) and not na(oiP[288]) and oiP[288] > 0 ? (oiP / oiP[288] - 1.0) * 100.0 : na
+sOIK  = na(d288) or na(dO288) ? 0 : math.abs(d288) >= 4.0 and dO288 >= 6.0 ? (d288 > 0 ? -1 : d288 < 0 ? 1 : 0) : 0   // [REV-09] 5/5→4/6
+vr    = math.sum(volume, 288) / (math.sum(volume, 1728) / 1728.0 * 288.0)
+sHVX  = na(d288) or na(vr) ? 0 : math.abs(d288) >= 5.0 and vr >= 1.5 ? (d288 > 0 ? -1 : d288 < 0 ? 1 : 0) : 0   // [REV-09] 1.3→1.5
+dB288 = na(btc[288]) ? na : (btc / btc[288] - 1.0) * 100.0
+rr    = na(d288) or na(dB288) ? na : d288 - dB288
+sREL  = na(rr) ? 0 : math.abs(rr) >= 6.0 ? (rr > 0 ? -1 : rr < 0 ? 1 : 0) : 0
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. BİLEŞENLER + OY
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var Ent cV1  = Ent.new()
+var Osc cZ4  = Osc.new()
+var Osc cZ8  = Osc.new()
+var Ent c4s  = Ent.new()
+var Ent c3g  = Ent.new()
+var Osc cRSI = Osc.new()
+var Ent cOIK = Ent.new()
+var Ent cHVX = Ent.new()
+var Ent cREL = Ent.new()
+var Rev cT3  = Rev.new()
+var Rev cT8  = Rev.new()
+var int   vLiq = 0
+var float vLiqEp = na
+var int   vLiqB = 0
+var int   vBL  = 0
+var int   vBLb = 0
+var int   vDM  = 0
+var int   pos  = 0
+var int   realDir = 0                                                     // [REV-10] gerçek yön
+var float rEp     = na
+var int   lockDir = 0
+var float lockExt = na
+var int   prevT   = 0
+var float score = 0.0
+var array<int> P = array.new_int(14, 0)
+
+if barstate.isconfirmed
+    // 7 LİKİDASYON (OI)
+    okO  = not na(oiP) and not na(oiP[6]) and oiP > 0 and oiP[6] > 0
+    dOi6 = okO ? (oiP / oiP[6] - 1.0) * 100.0 : 0.0
+    dPx6 = (close / close[6] - 1.0) * 100.0
+    liqL = okO and dPx6 <= -1.5 and dOi6 <= -2.0                               // [REV-09] OI −1.5→−2
+    liqS = okO and dPx6 >= 1.5 and dOi6 <= -2.0
+    if vLiq != 0
+        lRet = (close / vLiqEp - 1.0) * vLiq
+        if lRet <= -5.0 / 100.0 or bar_index - vLiqB >= 144 or (vLiq > 0 and r7 > 65.0) or (vLiq < 0 and r7 < 35.0)
+            vLiq := 0
+        else if vLiq > 0 and liqS
+            vLiq   := -1
+            vLiqEp := close
+            vLiqB  := bar_index
+        else if vLiq < 0 and liqL
+            vLiq   := 1
+            vLiqEp := close
+            vLiqB  := bar_index
+    else
+        if liqL
+            vLiq   := 1
+            vLiqEp := close
+            vLiqB  := bar_index
+        else if liqS
+            vLiq   := -1
+            vLiqEp := close
+            vLiqB  := bar_index
+    // 11 BTC LİDER
+    if vBL != 0 and bar_index - vBLb >= 24
+        vBL := 0
+    if not na(btc) and not na(btc[3]) and not na(close[3])
+        br = (btc / btc[3] - 1.0) * 100.0
+        ar = (close / close[3] - 1.0) * 100.0
+        if br >= 2.0 and ar < br
+            vBL  := 1
+            vBLb := bar_index
+        else if br <= -2.0 and ar > br
+            vBL  := -1
+            vBLb := bar_index
+    // 14 GÜNLÜK MOMENTUM (önceki tamamlanmış gün, sıfırda önceki yön korunur)
+    if dmSig != 0
+        vDM := dmSig
+    P.set(0,  cV1.step(sV1, close, bar_index, 648, 3.0))
+    P.set(1,  cZ4.step(z48, close, bar_index, -4.0, 4.0, 0.5, -0.5, 8.0, 288))      // [REV-11] ±3.5→±4
+    P.set(2,  cZ8.step(z96, close, bar_index, -3.5, 3.5, 0.0, 0.0, 8.0, 288))     // [REV-09] çıkış 0.5→0
+    P.set(3,  c4s.step(s4s, close, bar_index, 48, 10.0))
+    P.set(4,  c3g.step(s3g, close, bar_index, 1728, 10.0))
+    P.set(5,  cRSI.step(r14, close, bar_index, 20.0, 80.0, 45.0, 55.0, 3.0, 144))   // [REV-11] çıkış 50→45/55
+    P.set(6,  vLiq)
+    P.set(7,  cOIK.step(sOIK, close, bar_index, 144, 10.0))                          // [REV-09] 288→144
+    P.set(8,  cHVX.step(sHVX, close, bar_index, 288, 10.0))
+    P.set(9,  cREL.step(sREL, close, bar_index, 288, 10.0))
+    P.set(10, vBL)
+    P.set(11, cT3.step(close, 3.0))
+    P.set(12, cT8.step(close, 8.0))
+    P.set(13, vDM)
+    W = array.from(w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14)
+    num = 0.0
+    den = 0.0
+    for j = 0 to 13
+        num += W.get(j) * P.get(j)
+        den += math.abs(W.get(j))
+    score := den > 0 ? num / den : 0.0
+    want = pos
+    if pos != 0 and score * pos < offThr
+        want := 0
+    if score >= onThr
+        want := 1
+    else if score <= -onThr
+        want := -1
+    pos := want
+    // [REV-10] poz içi zarar sınırı + düzenli geri giriş
+    tgt = pos
+    if tgt != prevT
+        lockDir := 0
+        prevT   := tgt
+    w2 = tgt
+    if realDir != 0 and w2 == realDir
+        if (close / rEp - 1.0) * realDir * 100.0 <= -stopPct
+            lockDir := realDir
+            lockExt := close
+            w2      := 0
+    if lockDir != 0 and w2 == lockDir
+        lockExt := lockDir > 0 ? math.min(lockExt, close) : math.max(lockExt, close)
+        if (close / lockExt - 1.0) * lockDir * 100.0 >= reArm
+            lockDir := 0
+        else
+            w2 := 0
+    if w2 != realDir
+        realDir := w2
+        rEp     := close + syminfo.mintick * w2
+
+pUp = 1.0 / (1.0 + math.exp(-(-0.0247 + 0.7649 * score)))
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. EMİRLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+realPos = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+goLong  = barstate.isconfirmed and realDir == 1 and realPos != 1
+goShort = barstate.isconfirmed and realDir == -1 and realPos != -1
+goFlat  = barstate.isconfirmed and realDir == 0 and realPos != 0
+
+if goLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goFlat
+    strategy.close_all(comment = "EXIT-ALL_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7. GÖRSEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(goLong, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = color.lime, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(goShort, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = color.red, text = "SHORT", textcolor = color.white, size = size.tiny)
+plotshape(goFlat, title = "FLAT", style = shape.xcross, location = location.abovebar,
+     color = color.gray, size = size.tiny)
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 92) : strategy.position_size < 0 ? color.new(color.red, 92) : color.new(color.gray, 95))
+
+plot(score, "Konsorsiyum Skoru", display = display.data_window)
+plot(pos, "Konsorsiyum Yönü", display = display.data_window)
+plot(realDir, "Gerçek Yön", display = display.data_window)
+plot(lockDir, "Stop Kilidi", display = display.data_window)
+plot(pUp, "P(24s sonra yukarı)", display = display.data_window)
+plot(P.get(0), "1 DÖNÜŞ 24s", display = display.data_window)
+plot(P.get(1), "2 DÖNÜŞ z4s", display = display.data_window)
+plot(P.get(2), "3 DÖNÜŞ z8s", display = display.data_window)
+plot(P.get(3), "4 DÖNÜŞ 4s", display = display.data_window)
+plot(P.get(4), "5 DÖNÜŞ 3g", display = display.data_window)
+plot(P.get(5), "6 DÖNÜŞ RSI14", display = display.data_window)
+plot(P.get(6), "7 DÖNÜŞ likidasyon", display = display.data_window)
+plot(P.get(7), "8 DÖNÜŞ OI kurulum", display = display.data_window)
+plot(P.get(8), "9 DÖNÜŞ hacim", display = display.data_window)
+plot(P.get(9), "10 DÖNÜŞ BTC göreli", display = display.data_window)
+plot(P.get(10), "11 TAKİP BTC lider", display = display.data_window)
+plot(P.get(11), "12 TAKİP %3", display = display.data_window)
+plot(P.get(12), "13 TAKİP %8", display = display.data_window)
+plot(P.get(13), "14 TAKİP günlük mom.", display = display.data_window)

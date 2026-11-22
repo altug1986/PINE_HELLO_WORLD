@@ -1,0 +1,145 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════
+// CYBORG | BATUSDT.P 5M | SWING V2.2 — % HAREKET TAKİP 3/3 + GÖLGE PF KAPISI
+// ───────────────────────────────────────────────────────────────────
+// REV LOG
+//  V1.0   : 24 saat aşırı uzama dönüşü. TV: 1331 işlem | Net 4744$ | PF 1.326 | MaxDD 456/676$
+//  V1.1   : çok motorlu dönüş (2930 işlem), ikinci dönem −47$ — kabul edilmedi.
+//  V2.0   : [REV-03] Kullanıcı isteği: tüm motorlar kaldırıldı, sadece hareketi takip.
+//           LONG iken: pozisyondaki en yüksek kapanıştan %dn düşüş → SHORT
+//           SHORT iken: pozisyondaki en düşük kapanıştan %up yükseliş → LONG
+//           Hiç flat yok; her hareketin yönünde olur, eşikten büyük dönüşü kaçırmaz.
+//   Araştırma motoru (500$ sabit, %0.04, 1 tick) — TV'DE DOĞRULANMADI. 121 ayar (up/dn %2–20):
+//     ayarların %81'i zararda; simetrik küçük eşikler testerede kaybeder:
+//       3/3  → 5685 işlem | Net −1876$ | PF 0.95 | işlem içi ters gidiş P95 −%3.8
+//       5/5  → 2403 işlem | Net −1992$ | PF 0.92 | işlem içi ters gidiş P95 −%5.7
+//     Varsayılan 7/15 (ilk dönemde en iyi): 423 işlem | Net 1406$ (%281) | PF 1.14 | Sharpe 0.34
+//       DD P95/P98/P99 959/1017/1061$ | MaxDD 1004/1115$ | ilk dönem 1311$ / ikinci dönem 16$ | son 12 ay −209$
+//       yıl %: 20:51 21:272 22:−144 23:86 24:87 25:−56 26:−31 | ters gidiş P95 −%14.8
+//  V2.1   : [REV-04] Varsayılan eşik 3/3 (simetrik): %3'lük her dönüşte yön değiştirir, hiçbir hareketi kaçırmaz.
+//           3/3 motor: 5685 işlem | Net −1876$ | PF 0.95 | Sharpe −0.50 | DD P98 2809$ | MaxDD 2982/3005$
+//           ilk dönem −1936$ / ikinci dönem +65$ | yıl %: 20:−129 21:−31 22:−319 23:60 24:75 25:75 26:−105
+//           komisyon 2275$ (brüt kenar ≈ +400$, maliyet götürüyor) | ters gidiş P95 −%3.8
+//  V2.2   : [REV-05] PF FİLTRESİ (gölge mimarisi): 3/3 takip gölgede aynen çalışır, gölge işlemlerinin
+//           SON 10 İŞLEM PF'i ≥ 1.5 ise gölgenin yeni yönü gerçek hesaba geçer, değilse FLAT (bir sonraki dönüşe kadar).
+//           Gölge K/Z: giriş = kapanış ± 1 tick, 500$ sabit, %0.04 iki bacak. İlk 3 gölge işleme kadar kapı açık.
+//           Seçim: 3 eşik (3/4/5) × 47 kapı varyantı (son N işlem, aynı yön N işlem, son N gün, ters kapı), ilk dönem.
+//   V2.2 motor: 1444 işlem | Net 817$ (%163) | PF 1.083 | Win %38 | Sharpe 0.43 | Sortino 0.49
+//        DD P95/P98/P99 360/432/442$ | MaxDD 472/491$ | ilk dönem 566$ / ikinci dönem 251$ | son 12 ay −257$
+//        yıl %: 20:41 21:17 22:−38 23:56 24:91 25:26 26:−29 | komisyon 578$ | ters gidiş P95 −%4.0
+//   UYARI: ardışık 20-işlem blok PF korelasyonu −0.02 (performans kalıcı değil). Komşu kapılar zararda
+//          (son 10 PF ≥ 1.2: −179$; son 20 PF ≥ 1.5: +15$) → TEK HÜCRE, şans payı yüksek. Kapı kapalıyken hareket kaçırılır.
+//   KARŞILAŞTIRMA: V1.0 (dönüş) aynı dönemde 4771$, PF 1.34. BAT 5m'de trend takibi tek başına zayıf.
+// WunderTrading soketleri YER TUTUCU: BOTADI / BOTKODU kısmını BAT botunun kendi soket metniyle değiştir.
+// ═══════════════════════════════════════════════════════════════════
+strategy("CYBORG | BAT 5M SWING V2.2",
+     overlay = true,
+     initial_capital = 500,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 0,
+     margin_long = 0,
+     margin_short = 0,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2000)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. PARAMETRELER                                                    [REV-03]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grp1 = "1. % HAREKET TAKİP"                                          // [REV-04]
+upPct = input.float(3.0, "LONG'a dön: dipten yükseliş %", minval = 0.1, step = 0.5, group = grp1)
+dnPct = input.float(3.0, "SHORT'a dön: tepeden düşüş %", minval = 0.1, step = 0.5, group = grp1)
+
+grp2 = "2. GÖLGE PF KAPISI"                                           // [REV-05]
+pfN   = input.int(10, "Son N Gölge İşlem", minval = 1, group = grp2)
+pfMin = input.float(1.5, "Gerçek İşlem İçin Min PF", step = 0.1, group = grp2)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TIMEFRAME GUARD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. YÖN TAKİBİ (gölge, kapanış bazlı)
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var int   dir  = 0
+var float swHi = na
+var float swLo = na
+var float shEp = na
+var array<float> shPnl = array.new_float()                                   // [REV-05] gölge işlem K/Z
+var int   realDir = 0
+var float shPF    = na
+
+if barstate.isconfirmed
+    prevDir = dir
+    if na(swHi)
+        swHi := close
+        swLo := close
+    if dir >= 0
+        swHi := math.max(swHi, close)
+        if close <= swHi * (1.0 - dnPct / 100.0)
+            dir  := -1
+            swLo := close
+    if dir <= 0
+        swLo := math.min(swLo, close)
+        if close >= swLo * (1.0 + upPct / 100.0)
+            dir  := 1
+            swHi := close
+    // [REV-05] gölge dönüşü: önceki gölge işlemi kapat, PF kapısını değerlendir
+    if dir != prevDir
+        if prevDir != 0
+            xPx = close - syminfo.mintick * prevDir
+            qty = 500.0 / shEp
+            array.push(shPnl, (xPx - shEp) * qty * prevDir - 0.0004 * qty * (shEp + xPx))
+        shEp := close + syminfo.mintick * dir
+        gp = 0.0
+        gl = 0.0
+        cnt = 0
+        sz = array.size(shPnl)
+        for j = sz - 1 to 0
+            if sz == 0 or cnt >= pfN
+                break
+            pv = array.get(shPnl, j)
+            if pv > 0
+                gp += pv
+            else
+                gl -= pv
+            cnt += 1
+        shPF := gl > 0 ? gp / gl : 99.0
+        realDir := cnt < 3 or shPF >= pfMin ? dir : 0
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. EMİRLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+realPos = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+goLong  = barstate.isconfirmed and realDir == 1 and realPos != 1
+goShort = barstate.isconfirmed and realDir == -1 and realPos != -1
+goFlat  = barstate.isconfirmed and realDir == 0 and realPos != 0
+
+if goLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goFlat
+    strategy.close_all(comment = "EXIT-ALL_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. GÖRSEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(goLong, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = color.lime, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(goShort, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = color.red, text = "SHORT", textcolor = color.white, size = size.tiny)
+plot(dir == 1 ? swHi * (1.0 - dnPct / 100.0) : na, "SHORT'a dönüş seviyesi", color = color.red, style = plot.style_linebr)
+plot(dir == -1 ? swLo * (1.0 + upPct / 100.0) : na, "LONG'a dönüş seviyesi", color = color.lime, style = plot.style_linebr)
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 92) : strategy.position_size < 0 ? color.new(color.red, 92) : color.new(color.gray, 95))
+plotshape(goFlat, title = "FLAT", style = shape.xcross, location = location.abovebar, color = color.gray, size = size.tiny)
+plot(dir, "Gölge Yön", display = display.data_window)
+plot(realDir, "Gerçek Yön", display = display.data_window)
+plot(shPF, "Gölge PF (son N)", display = display.data_window)

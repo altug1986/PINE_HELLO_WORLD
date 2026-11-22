@@ -1,0 +1,183 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════
+// CYBORG | BATUSDT.P 5M | TAHMİNCİ V4.0 — 4 BOYUTLU ÇEVRİMİÇİ BAĞLAMSAL BEKLENTİ FİLTRESİ
+// ───────────────────────────────────────────────────────────────────
+// REV LOG
+//  V1.0   : 24 saat aşırı uzama dönüşü. TV: 1331 işlem | Net 4744$ | PF 1.326 (baz)
+//  V2.1   : %3/%3 hareket takip (hiçbir hareketi kaçırmaz): motor 5685 işlem | Net −1876$
+//  V3.0   : ORKESTRA. TV: 2588 işlem | Net 2805$ | PF 1.147
+//  V4.0   : [REV-07] TAHMİNCİ: %3/%3 takip GÖLGEDE çalışır; her gölge dönüşünde bağlam hücresine bakılır:
+//    BOYUT 1 YÖN       : long / short
+//    BOYUT 2 EKRAN     : işlem yönünde 24 saat değişim %  → kovalar −5.8 / −1.25 / 1.45 / 5.8
+//    BOYUT 3 VOLATİLİTE: 1S ATR% ÷ son 720 saatin medyanı  → kovalar 0.88 / 1.34
+//    BOYUT 4 TREND     : işlem yönünde 7 gün değişim %     → kovalar −15 / −4.3 / 4.3 / 15
+//    Her kapanan gölge işlem kendi hücrelerine öğretilir (takip K/Z ve ters K/Z). Yeni dönüşte beklenti
+//    hiyerarşik büzülmeyle tahmin edilir: yön → +ekran → +volatilite → +trend, her seviyede
+//    E = (hücre toplamı + k × üst seviye E) / (hücre adedi + k).
+//    KARAR: E_takip ≥ eşik ve ≥ E_ters → TAKİP | E_ters ≥ eşik → TERS (hareketin tersine) | değilse FLAT.
+//    Sadece geçmişten öğrenir (geleceği görmez). Başta hiç bilgi yok → FLAT başlar.
+//    Seçim: ilk dönem (2020-02-13 → 2024-11-01), 70 ayarlık ızgaranın plato merkezi: k = 5, eşik = 3$.
+//   Araştırma motoru (500$ sabit, %0.04, 1 tick) — TV'DE DOĞRULANMADI:
+//     Net 679$ (%136) | 1521 işlem | PF 1.064 | Sharpe 0.32 | Sortino 0.38
+//     DD P95/P98/P99 301/320/337$ | MaxDD 358$ (kapanış) / 380$ (çubuk içi) | UPI 0.6 | pozitif ay %59
+//     İlk dönem 509$ / ikinci dönem 170$ | son 12 ay −49$ | 6 aylık blok 9/14 | komisyon 609$
+//     yıl %: 20:−24 21:88 22:1 23:22 24:28 25:33 26:−13
+//     İşlem içi ters gidiş P90/P95/P99 −%6.9 / −%9.1 / −%15.6
+//   UYARI: stres (%0.08 + 3 tick) −46$ | monkey p 0.04–0.09 (çoğu aile 0.05'i geçemedi) | MC zarar olasılığı %19
+//          İlk dönem ızgarasında komşu ayarlar −600$ ile +800$ arası → gürültü baskın. V1.0'ın yerine geçmez.
+//   Not: 7 günlük değişim close[2016] ister → max_bars_back 2100.
+// WunderTrading soketleri YER TUTUCU: BOTADI / BOTKODU kısmını BAT botunun kendi soket metniyle değiştir.
+// ═══════════════════════════════════════════════════════════════════
+strategy("CYBORG | BAT 5M TAHMİNCİ V4.0",
+     overlay = true,
+     initial_capital = 500,
+     default_qty_type = strategy.cash,
+     default_qty_value = 500,
+     pyramiding = 0,
+     margin_long = 0,
+     margin_short = 0,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.04,
+     slippage = 1,
+     process_orders_on_close = true,
+     calc_on_every_tick = false,
+     calc_on_order_fills = false,
+     max_bars_back = 2100)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. PARAMETRELER                                                    [REV-07]
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grp1 = "1. GÖLGE TAKİP"
+revPct = input.float(3.0, "Gölge Dönüş % (dip/tepeden)", minval = 0.1, step = 0.5, group = grp1)
+
+grp2 = "2. TAHMİNCİ"
+kShr  = input.float(5.0, "Büzülme k (üst hücreye yaslanma)", minval = 0.0, step = 1.0, group = grp2)
+thExp = input.float(3.0, "Karar Eşiği: Beklenen K/Z $ / işlem", step = 0.5, group = grp2)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. TIMEFRAME GUARD
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error("Strateji yalnizca 5 dakikalik grafikte calisir.")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. BAĞLAM ÖZELLİKLERİ
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_volr() =>
+    a = ta.atr(14) / close * 100.0
+    a / ta.median(a, 720)
+
+volr  = request.security(syminfo.tickerid, "60", f_volr()[1], gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+e24   = na(close[288])  ? na : (close / close[288]  - 1.0) * 100.0
+e7    = na(close[2016]) ? na : (close / close[2016] - 1.0) * 100.0
+
+f_b24(float x) =>
+    na(x) ? 2 : (x >= -5.8 ? 1 : 0) + (x >= -1.25 ? 1 : 0) + (x >= 1.45 ? 1 : 0) + (x >= 5.8 ? 1 : 0)
+f_bvr(float x) =>
+    na(x) ? 1 : (x >= 0.88 ? 1 : 0) + (x >= 1.34 ? 1 : 0)
+f_b7(float x) =>
+    na(x) ? 2 : (x >= -15.0 ? 1 : 0) + (x >= -4.3 ? 1 : 0) + (x >= 4.3 ? 1 : 0) + (x >= 15.0 ? 1 : 0)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. GÖLGE TAKİP + TAHMİNCİ
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var int   sDir = 0
+var float swHi = na
+var float swLo = na
+var array<float> Sf   = array.new_float(4096, 0.0)      // hücre: takip K/Z toplamı
+var array<float> Si   = array.new_float(4096, 0.0)      // hücre: ters K/Z toplamı
+var array<float> Nn   = array.new_float(4096, 0.0)      // hücre: işlem adedi
+var array<int>   cell = array.from(0, 0, 0, 0)
+var float shEp    = na
+var float shQ     = na
+var int   realDir = 0
+var float eF      = 0.0
+var float eI      = 0.0
+
+if barstate.isconfirmed
+    prevS = sDir
+    if na(swHi)
+        swHi := close
+        swLo := close
+    if sDir >= 0
+        swHi := math.max(swHi, close)
+        if close <= swHi * (1.0 - revPct / 100.0)
+            sDir := -1
+            swLo := close
+    if sDir <= 0
+        swLo := math.min(swLo, close)
+        if close >= swLo * (1.0 + revPct / 100.0)
+            sDir := 1
+            swHi := close
+    if sDir != prevS
+        // kapanan gölge işlemi kendi hücrelerine öğret
+        if prevS != 0
+            px = close - syminfo.mintick * prevS
+            p  = (px - shEp) * shQ * prevS - 0.0004 * shQ * (shEp + px)
+            r  = -p - 2.0 * 0.0004 * shQ * (shEp + px) - 4.0 * syminfo.mintick * shQ
+            for lv = 0 to 3
+                j = lv * 1024 + cell.get(lv)
+                Sf.set(j, Sf.get(j) + p)
+                Si.set(j, Si.get(j) + r)
+                Nn.set(j, Nn.get(j) + 1.0)
+        // yeni gölge işlem: bağlam → hücre → tahmin → karar
+        if sDir != 0
+            b1 = f_b24(e24 * sDir)
+            b2 = f_bvr(volr)
+            b3 = f_b7(e7 * sDir)
+            k0 = sDir > 0 ? 1 : 0
+            c1 = k0 * 8 + b1
+            c2 = c1 * 8 + b2
+            c3 = c2 * 8 + b3
+            cell.set(0, k0)
+            cell.set(1, c1)
+            cell.set(2, c2)
+            cell.set(3, c3)
+            ef = 0.0
+            ei = 0.0
+            for lv = 0 to 3
+                j = lv * 1024 + cell.get(lv)
+                ef := (Sf.get(j) + kShr * ef) / (Nn.get(j) + kShr)
+                ei := (Si.get(j) + kShr * ei) / (Nn.get(j) + kShr)
+            act = ef >= thExp and ef >= ei ? 1 : ei >= thExp ? -1 : 0
+            realDir := act * sDir
+            eF := ef
+            eI := ei
+            shEp := close + syminfo.mintick * sDir
+            shQ  := 500.0 / close
+        else
+            realDir := 0
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. EMİRLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+realPos = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+goLong  = barstate.isconfirmed and realDir == 1 and realPos != 1
+goShort = barstate.isconfirmed and realDir == -1 and realPos != -1
+goFlat  = barstate.isconfirmed and realDir == 0 and realPos != 0
+
+if goLong
+    strategy.entry("LONG", strategy.long, comment = "ENTER-LONG_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goShort
+    strategy.entry("SHORT", strategy.short, comment = "ENTER-SHORT_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+else if goFlat
+    strategy.close_all(comment = "EXIT-ALL_BINANCE_BATUSDT_BOTADI_5M_BOTKODU")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. GÖRSEL
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(goLong, title = "LONG", style = shape.labelup, location = location.belowbar,
+     color = color.lime, text = "LONG", textcolor = color.black, size = size.tiny)
+plotshape(goShort, title = "SHORT", style = shape.labeldown, location = location.abovebar,
+     color = color.red, text = "SHORT", textcolor = color.white, size = size.tiny)
+plotshape(goFlat, title = "FLAT", style = shape.xcross, location = location.abovebar,
+     color = color.gray, size = size.tiny)
+bgcolor(strategy.position_size > 0 ? color.new(color.lime, 92) : strategy.position_size < 0 ? color.new(color.red, 92) : color.new(color.gray, 95))
+
+plot(sDir, "Gölge Yön", display = display.data_window)
+plot(realDir, "Gerçek Yön", display = display.data_window)
+plot(eF, "Beklenti TAKİP $", display = display.data_window)
+plot(eI, "Beklenti TERS $", display = display.data_window)
+plot(e24, "24s Değişim %", display = display.data_window)
+plot(volr, "Volatilite Oranı", display = display.data_window)
+plot(e7, "7g Değişim %", display = display.data_window)
