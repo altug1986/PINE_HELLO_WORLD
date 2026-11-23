@@ -17,6 +17,13 @@ jobs:
           python-version: "3.11"
       - name: Download and audit original Binance Vision daily metrics
         run: python scripts/xmr_positions_backfill_5m.py
+      - name: Preserve downloaded data as a GitHub Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xmr-positions-5m-and-audit
+          retention-days: 7
+          path: |
+            data/XMR_TOP_TRADER_POSITIONS_5m_UTC_20211201_THROUGH_20261122*
       - name: Commit ONLY separate XMR positions data and audit files
         shell: bash
         run: |
@@ -25,7 +32,15 @@ jobs:
           git add data/XMR_TOP_TRADER_POSITIONS_5m_UTC_20211201_THROUGH_20261122*
           if ! git diff --cached --quiet; then
             git commit -m "Data: XMR top-trader positions 5m archive backfill with coverage audit"
-            git push
+            for attempt in 1 2 3; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then
+                exit 0
+              fi
+              sleep 3
+            done
+            exit 1
           fi
       - name: Fail visibly if no values were found
         run: |
