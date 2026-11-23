@@ -62,7 +62,7 @@ pre,.scroll{overflow-x:auto}
 </header>
 <section class="band" style="padding-top:0">
 <h2>Teminat · önümüzdeki 12 ay MaxDD beklentisi</h2>
-<p class="note">Son 18 ayın 10 dk MTM artışları 1 haftalık bloklarla karıştırılır (2.000 tur, sabit tohum, aday ve baz aynı rastgele dizilerle). Stres: ortalama kâr akışının %25'i canlı maliyete gider. Yüzdeler kendi nominaline göre.</p>
+<p class="note">Son 18 ayın 10 dk MTM artışları 1 haftalık bloklarla karıştırılır (2.000 tur, sabit tohum, aday ve baz aynı rastgele dizilerle). Stres: ortalama kâr akışının %10'u canlı maliyete gider. Yüzdeler kendi nominaline göre.</p>
 <div class="scroll"><table id="mct"></table></div>
 <p id="mcn" style="font-size:17px;margin:12px 0 0"></p>
 </section>
@@ -266,8 +266,8 @@ function recent(){
 function mcRun(){
   $('#mcn').textContent='Monte Carlo hesaplanıyor…';clearTimeout(mcT);
   mcT=setTimeout(()=>{const R=2000,sd=20261123,Q=[50,75,90,91,92,93,94,95,96,97,98,99];
-    const fa=[CORE.mc(A.eq,J,A.tot,0,R,sd),CORE.mc(A.eq,J,A.tot,.25,R,sd)];
-    if(!BMC)BMC=[CORE.mc(B.eq,J,B.tot,0,R,sd),CORE.mc(B.eq,J,B.tot,.25,R,sd)];const fb=BMC;
+    const fa=[CORE.mc(A.eq,J,A.tot,0,R,sd),CORE.mc(A.eq,J,A.tot,.10,R,sd)];
+    if(!BMC)BMC=[CORE.mc(B.eq,J,B.tot,0,R,sd),CORE.mc(B.eq,J,B.tot,.10,R,sd)];const fb=BMC;
     const c=(x,y)=>{const v=x-y,t=Math.abs(v)<.005;return `<td class="num">%${f(x,2)}</td><td class="num ${t?'':(v<0?'up':'dn')}">${t?'aynı':sg(v,2)}</td>`};
     $('#mct').innerHTML='<tr><th>Yüzdelik</th><th class="num">Aday</th><th class="num">Δ baz</th><th class="num">Aday · stres</th><th class="num">Δ baz</th></tr>'+
       Q.map(q=>`<tr><td>P${q}</td>${c(fa[0](q),fb[0](q))}${c(fa[1](q),fb[1](q))}</tr>`).join('');
