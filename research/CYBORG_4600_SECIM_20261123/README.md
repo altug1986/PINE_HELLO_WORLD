@@ -22,10 +22,12 @@ Karşılaştırma adayları (aynı motor): Beton-500 (net 27.535, MaxDD 2,65, L/
 
 ## Canlı Wunder son hali (23 Kas 09:50) — tüm Instant ayarları dahil
 Nominaller (Pine ×2): Path-Lock 300/95 · Micro 280/150 · MANU 226/226 · XMR Short 5dk 200 · 4dk 200 · 2dk 320 · DOGE Long 220 · DOGE 3dk 200 · BTCDOM 500 · LTC Trinity 370 · Polaris 210 · ETC 250 · ADA 200 · PEPE 250 · BAT 150 · DOGE V7 SERİ 250 = 4.597.
-Değişen Wunder kuralları: DOGE Short SL10 + TP %2→%10 (eski %1,5→%40: −146 USDT); DOGE Long SL17 + TP %2→%10 + trailing 4%|0,5%; LTC Trinity SL10 + TP %4→%50 (modelde yoktu, sapmayı en çok düşüren). BAT SL15, XMR Short 4dk SL8, XMR Short 2dk SL8 hiç tetiklenmiyor (etki 0).
+Değişen Wunder kuralları: DOGE Short SL10 + TP %2→%10 (eski %1,5→%40: −146 USDT); DOGE Long SL17 + TP %2→%10 + trailing 4%|0,5%; LTC Trinity SL10 + TP %4→%50 (modelde yoktu, sapmayı en çok düşüren). BAT SL15, XMR Short 4dk SL8 (c76c1 ile de), XMR Short 2dk SL8 hiç tetiklenmiyor (etki 0).
 
 | Net | MaxDD | DD P95/P99 | Calmar | 10 dk sapma | 1 saat sapma | Neg. hafta | Son 90/300 |
 |---|---|---|---|---|---|---|---|
-| 26.213 | %3,23 | 1,24/1,88 | 50,1 | %0,0578 | %0,1453 | 7 | 1.321 / 4.327 |
+| 26.350 | %3,21 | 1,24/1,85 | 50,7 | %0,0579 | %0,1457 | 7 | 1.337 / 4.391 |
 
-12 ay ileri MaxDD (%): P50 2,60 · P90 3,41 · P95 3,71 · P99 4,48; kenar −%25: P95 4,97 · P99 6,02 → teminat tabanı ≈ %6 (≈277 USDT).
+12 ay ileri MaxDD (%): P50 2,58 · P90 3,39 · P95 3,71 · P99 4,49; kenar −%25: P95 4,97 · P99 6,00 → teminat tabanı ≈ %6 (≈276 USDT).
+
+XMR Short 4dk 23 Kas 10:42 itibarıyla c76c1 "G5 Fiyat oku" (önceki 5e69d; aynı soket dd503…): kol 173,9 → 310,8 USDT (200 nominal); portföy net 26.213 → 26.350, Calmar 50,1 → 50,7.
