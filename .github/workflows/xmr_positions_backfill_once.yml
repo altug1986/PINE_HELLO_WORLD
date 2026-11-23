@@ -1,0 +1,39 @@
+name: XMR Top Trader Positions 5M one-time historical backfill
+on:
+  push:
+    paths:
+      - ".github/workflows/xmr_positions_backfill_once.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Download and audit original Binance Vision daily metrics
+        run: python scripts/xmr_positions_backfill_5m.py
+      - name: Commit ONLY separate XMR positions data and audit files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/XMR_TOP_TRADER_POSITIONS_5m_UTC_20211201_THROUGH_20261122*
+          if ! git diff --cached --quiet; then
+            git commit -m "Data: XMR top-trader positions 5m archive backfill with coverage audit"
+            git push
+          fi
+      - name: Fail visibly if no values were found
+        run: |
+          python - <<'PY'
+          import json
+          p='data/XMR_TOP_TRADER_POSITIONS_5m_UTC_20211201_THROUGH_20261122_AUDIT.json'
+          a=json.load(open(p,encoding='utf8'))
+          if a['unique_valid_rows']==0:
+              raise SystemExit('No historical positions were available; read AUDIT.json before retrying')
+          print('BACKFILL_ROWS',a['unique_valid_rows'])
+          PY
