@@ -26,8 +26,10 @@ Değişen Wunder kuralları: DOGE Short SL10 + TP %2→%10 (eski %1,5→%40: −
 
 | Net | MaxDD | DD P95/P99 | Calmar | 10 dk sapma | 1 saat sapma | Neg. hafta | Son 90/300 |
 |---|---|---|---|---|---|---|---|
-| 26.350 | %3,21 | 1,24/1,85 | 50,7 | %0,0579 | %0,1457 | 7 | 1.337 / 4.391 |
+| 26.222 | %3,11 | 1,24/1,85 | 52,0 | %0,0578 | %0,1453 | 7 | 1.316 / 4.346 |
 
-12 ay ileri MaxDD (%): P50 2,58 · P90 3,39 · P95 3,71 · P99 4,49; avantaj aşınması −%10 (20.000 tur): P95 4,15 · P99 5,01 → teminat tabanı ≈ %5 (≈230 USDT); −%25 aşınmada P99 6,00 (≈276 USDT).
+12 ay ileri MaxDD (%): P50 2,60 · P90 3,38 · P95 3,68 · P99 4,45; avantaj aşınması −%10 (20.000 tur): P95 4,13 · P99 4,99 → teminat tabanı ≈ %5 (≈229 USDT); −%25 aşınmada P99 5,94 (≈273 USDT).
+
+XMR Short 2m REV10 23 Kas 17:34 itibarıyla Wunder Instant SL %2,5 (önceki %8): kol 959 → 831 USDT; portföy MaxDD %3,21 → %3,11, Calmar 50,7 → 52,0.
 
 XMR Short 4dk 23 Kas 10:42 itibarıyla c76c1 "G5 Fiyat oku" (önceki 5e69d; aynı soket dd503…): kol 173,9 → 310,8 USDT (200 nominal); portföy net 26.213 → 26.350, Calmar 50,1 → 50,7.
