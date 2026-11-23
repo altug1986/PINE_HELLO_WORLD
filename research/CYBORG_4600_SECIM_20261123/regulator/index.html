@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CYBORG 4600 regülatör</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: sakin, kesin, mühendis föyü — önce sayı, sonra neden.
+   IDEA: mimari monografın ölçekli çizimi: portföy eğrisi tek büyük teknik çizim.
+   PICTURE: aday/baz kümülatif net + altında sarı zirve altı alanı (tek sarı öğe).
+   COLOUR and TYPE: beyaz/siyah, beton #d8d8d4 düzlemler, güvenlik sarısı yalnız DD alanında; Hanken Grotesk.
+   LAYOUT: başlık köşede küçük, KPI şeridi, büyük çizim, kol kumandaları, haftalık harita, aylık tablo. */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#1a1a19);--ink:light-dark(#111110,#f0f0ec);--mut:light-dark(#6b6b66,#a3a39c);--pl:light-dark(#d8d8d4,#2c2c2a);--pl2:light-dark(#efefec,#232322);--line:light-dark(#e2e2de,#363634);--yl:#ffe600;--bad:light-dark(#c8102e,#ff6b6b);--good:light-dark(#0a7d38,#45d483)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Hanken Grotesk",system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(20px,3vw,40px) max(4vw,16px);max-width:1240px;margin:0 auto}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.05;margin:0 0 6px;font-weight:500;text-wrap:balance}
+h2{font-size:22px;font-weight:500;margin:0 0 12px}
+.sub{color:var(--mut);margin:0;max-width:72ch;font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{padding:5px 12px;border-radius:999px;background:var(--pl2);font-size:14px;font-weight:500}
+.chip.bad{background:var(--bad);color:#fff}.chip.ok{background:var(--ink);color:var(--bg)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:20px}
+.k{background:var(--bg);padding:12px 14px}.k b{display:block;font-size:24px;font-weight:500;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums}
+.k span{font-size:13px;color:var(--mut)}.k i{font-style:normal;font-size:13px;white-space:nowrap}
+.up{color:var(--good)}.dn{color:var(--bad)}
+.leg{display:flex;flex-wrap:wrap;gap:16px;font-size:14px;color:var(--mut);margin:18px 0 6px}
+.leg em{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:6px;font-style:normal}
+.fig{position:relative;min-height:380px;background:var(--pl2)}.fig>canvas{position:absolute;inset:0;width:100%;height:100%}
+#rd{font-size:13px;color:var(--mut);min-height:20px;margin-top:6px;font-variant-numeric:tabular-nums}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.seg{display:inline-flex;border:1px solid var(--ink);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent}.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+button{font:inherit;font-size:15px;min-height:44px;padding:0 14px;border:1px solid var(--ink);border-radius:8px;background:var(--bg);color:var(--ink);cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--yl);outline-offset:1px}
+input[type=number],select{font:inherit;font-size:16px;min-height:44px;width:96px;padding:0 8px;border:1px solid var(--pl);border-radius:8px;background:var(--bg);color:var(--ink);text-align:right}
+select{width:auto;text-align:left}
+input[type=range]{width:100%;accent-color:var(--ink);min-height:32px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:13px;color:var(--mut);font-weight:500}.num{text-align:right;white-space:nowrap}
+td small{display:block;color:var(--mut);font-size:13px}
+.nm{display:grid;grid-template-columns:minmax(80px,1fr) 96px;gap:10px;align-items:center}
+.plane{background:var(--pl2);padding:16px}
+.wm{display:grid;grid-template-columns:44px repeat(53,minmax(0,1fr));gap:2px;font-size:13px}
+.wm button{min-height:20px;padding:0;border:0;border-radius:2px;background:var(--pl)}
+.wm .y{align-self:center;color:var(--mut)}
+.wins{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.wins .fig{min-height:360px}.wins h3{font-size:17px;font-weight:500;margin:0 0 4px}.wins p{margin:0 0 8px;font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:24px;align-items:start}
+.kb{display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:4px 10px;font-size:14px}
+.kb div.b{height:14px;align-self:center}
+.note{font-size:14px;color:var(--mut)}
+pre,.scroll{overflow-x:auto}
+@media(max-width:820px){.two,.wins{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mut)}.stack td:empty{display:none}.wm{grid-template-columns:30px repeat(53,minmax(0,1fr));gap:1px}.fig{min-height:300px}}
+</style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script></head><body>
+<header class="band">
+<h1>CYBORG 4600 · kol regülatörü · canlı 23 Kasım</h1>
+<p class="sub">19 kolun nominalini değiştir; tüm metrikler 10 dakikalık açık pozisyon dahil (MTM) eğriden anında yeniden hesaplanır. Pencere 8 May 2023 – 14 Kas 2026, 183 tam hafta, 41 tam ay. Kaynak: TV export işlemleri + 23 Kasım Wunder canlı ayarları (SL, kısmi TP, trailing; 1 dk OHLC ile), araştırma motoru, sabit nominal, bileşik yok, funding hariç. Açılışta baz ve aday = canlı dağılım (4.597, Pine kolları ×2); kaydırıcıyla değiştirdiğin aday, canlıya karşı ölçülür.</p>
+<div class="chips" id="chips"></div>
+<div class="kpis" id="kpis"></div>
+</header>
+<section class="band" style="padding-top:0">
+<h2>Teminat · önümüzdeki 12 ay MaxDD beklentisi</h2>
+<p class="note">Son 18 ayın 10 dk MTM artışları 1 haftalık bloklarla karıştırılır (2.000 tur, sabit tohum, aday ve baz aynı rastgele dizilerle). Stres: ortalama kâr akışının %25'i canlı maliyete gider. Yüzdeler kendi nominaline göre.</p>
+<div class="scroll"><table id="mct"></table></div>
+<p id="mcn" style="font-size:17px;margin:12px 0 0"></p>
+</section>
+<section class="band" style="padding-top:0">
+<div class="leg"><span><em style="background:var(--ink)"></em>Aday kümülatif net (% kendi nominali)</span><span><em style="background:var(--mut)"></em>Baz</span><span><em style="background:var(--yl);height:10px"></em>Aday zirve altı</span><span><em style="background:var(--mut);height:2px"></em>Baz zirve altı</span></div>
+<div class="fig" id="fig"><canvas id="cv"></canvas></div>
+<div id="rd">Seriler yükleniyor…</div>
+</section>
+<section class="band" style="padding-top:0">
+<h2>Son 90 ve 300 gün kontrolü</h2>
+<div class="leg" style="margin-top:0"><span><em style="background:var(--ink)"></em>Aday</span><span><em style="background:var(--mut)"></em>Baz</span><span><em style="background:var(--yl);height:10px"></em>Aday zirve altı</span><span>Alt panel: 1 saatlik net değişimin 7 günlük kayan sapması (% nominal, eksen sıfırdan)</span></div>
+<div class="wins"><div><h3>Son 90 gün</h3><p id="w90t"></p><div class="fig"><canvas id="w90"></canvas></div></div><div><h3>Son 300 gün</h3><p id="w300t"></p><div class="fig"><canvas id="w300"></canvas></div></div></div>
+<details style="margin-top:14px"><summary class="note" style="cursor:pointer;min-height:44px;display:flex;align-items:center">Sayı tablosu</summary><div class="scroll"><table id="rc"></table></div></details>
+<p class="note" id="rcn"></p>
+</section>
+<section class="band">
+<h2>Kollar</h2>
+<div class="bar">
+<span class="seg" role="group" aria-label="Path-Lock sürümü"><button id="v4" aria-pressed="false">Path-Lock V4</button><button id="v41" aria-pressed="true">Path-Lock V4.1 LIQ</button></span>
+<label>Hedef toplam <input type="number" id="tg" min="0" step="1" value="4597"></label>
+<button id="fit">Hedefe ölçekle</button><button id="rb">Baz nominale dön</button><button id="mk">Adayı baz yap</button><button id="df">Canlıya sıfırla</button><button id="b5">Beton · BTCDOM 500</button><button id="bl">Beton · Long = Short</button><button id="sc">Canlı (23 Kas)</button>
+</div>
+<p class="note" id="bz"></p>
+<div class="scroll"><table class="stack"><thead><tr><th>Kol</th><th>Nominal (USDT)</th><th class="num">Δ baz</th><th class="num">Net katkı</th><th class="num">Net payı</th></tr></thead><tbody id="kt"></tbody></table></div>
+</section>
+<section class="band">
+<div class="two">
+<div><h2>Haftalık harita</h2>
+<div class="bar"><select id="wmd" aria-label="Harita"><option value="a">Aday haftalık net</option><option value="b">Baz haftalık net</option><option value="d">Fark (aday − baz)</option></select><span class="note">Hücreye dokun: o haftanın kol dağılımı.</span></div>
+<div class="wm" id="wm"></div></div>
+<div class="plane"><h2 id="wh">Hafta seç</h2><div id="wd" class="note">Haritadan bir hafta seçince aday ve baz haftalık net ile kolların katkısı (zarardan kâra) burada görünür.</div></div>
+</div>
+</section>
+<section class="band">
+<h2>Aylık net (aday, USDT)</h2>
+<div class="scroll"><table id="mt"></table></div>
+<p class="note">Hücre üzerine gel: baz değeri. Yıl toplamı yalnız tam ayları içerir.</p>
+</section>
+<footer class="band note">
+<p>Sınırlar: nominal ile doğrusal ölçek varsayılır (min emir, kayma, marjin çakışması doğrusal değil); funding hariç; Path-Lock V4.1 LIQ serisi TV export (f0978) işlemlerine Wunder Instant kuralları uygulanarak üretildi. 4.600 paketi = 4.500 kol seti + BAT V7.2 100 USDT, DOGE eski Short 5 dk yerine DOGE V7. BAT serisi v72 TV export'undan 1 dk OHLC ile kuruldu ve 4.700 paket referansını birebir üretti (net 27.156,24 · MaxDD 164,30 · P99 95,24). DOGE kolu V7 SERİ export'u (7a533, 23 Kas) ile kuruldu; paketteki SERİ + BAT100 (4.600) sonucunu 0,1 USDT farkla üretti (net 26.281,43 / paket 26.281,53; MaxDD 159,60 / 159,70). Fark: export sürümü (22 → 23 Kas, bir işlemde 0,20 USDT) ve paketin 30 Eki – 7 Kas DOGE fiyat köprüsü; burada gerçek 1 dk veri kullanıldı. BTCDOM canlıda TP %1,73, modelde %1,75 (ihmal edilebilir). BAT SL %15, XMR Short 4 dk / 2 dk SL %8 3,5 yılda hiç tetiklenmiyor. Beton-500 ve Beton-LS düğmeleri yürüyen-ileri optimizasyon önerileridir. TradingView export işlem otoritesidir; buradaki sayılar araştırma motoru çıktısıdır.</p>
+</footer>
+<script>
+const CORE={
+  async load(J){CORE.J=J;
+    const bin=Uint8Array.from(atob(J.b64),c=>c.charCodeAt(0));
+    let buf;
+    if(bin[0]===0x1f&&bin[1]===0x8b){buf=await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()}else buf=bin.buffer;
+    const d=new Int32Array(buf),L=J.L,S=[];
+    for(let r=0;r<J.rows;r++){const a=new Float64Array(L);let q=0;for(let i=0;i<L;i++){q+=d[r*L+i];a[i]=q*J.scale}S.push(a)}
+    return S;
+  },
+  sdk(eq,k){const x=[];for(let t=k;t<eq.length;t+=k)x.push(eq[t]-eq[t-k]);const m=x.reduce((p,q)=>p+q,0)/x.length;return Math.sqrt(x.reduce((p,q)=>p+(q-m)**2,0)/(x.length-1))},
+  cvk(eq,k){const x=[];for(let t=k;t<eq.length;t+=k)x.push(eq[t]-eq[t-k]);const m=x.reduce((p,q)=>p+q,0)/x.length;return Math.sqrt(x.reduce((p,q)=>p+(q-m)**2,0)/(x.length-1))/m},
+  row(S,i,ver,J=CORE.J){return (i<2&&ver===41)?S[J.alt+i]:S[i]},
+  win(eq,J,a,tot){
+    const L=J.L,n=L-a,e=new Float64Array(n);for(let t=0;t<n;t++)e[t]=eq[a+t]-eq[a];
+    let pk=-Infinity,mdd=0;const dd=new Float64Array(n);for(let t=0;t<n;t++){if(e[t]>pk)pk=e[t];dd[t]=pk-e[t];if(dd[t]>mdd)mdd=dd[t]}
+    const s=Float64Array.from(dd).sort(),pct=q=>{const h=(n-1)*q/100,lo=Math.floor(h);return s[lo]+(lo+1<n?(s[lo+1]-s[lo])*(h-lo):0)};
+    const sd=k=>{const x=[];for(let t=k;t<n;t+=k)x.push(e[t]-e[t-k]);const m=x.reduce((p,q)=>p+q,0)/x.length;return [Math.sqrt(x.reduce((p,q)=>p+(q-m)**2,0)/(x.length-1)),m]};
+    const [s10,m10]=sd(1),[s1h,m1h]=sd(6),wk=J.wi.filter(i=>i>=a);let neg=0;for(let k=0;k+1<wk.length;k++)if(eq[wk[k+1]]-eq[wk[k]]<0)neg++;
+    const days=(n-1)*10/1440,net=e[n-1];
+    return {net,yr:tot?net*365/days/tot*100:0,mdd,mddP:tot?mdd/tot*100:0,p95:pct(95),p99:pct(99),cal:mdd?net*365/days/mdd:0,s10:tot?s10/tot*100:0,s1h:tot?s1h/tot*100:0,cv1h:m1h?s1h/m1h:0,neg,nW:Math.max(0,wk.length-1)};
+  },
+  mc(eq,J,tot,h,R,seed){
+    const L=J.L,a0=Math.max(0,L-1-548*144),n=L-1-a0,inc=new Float64Array(n);let m=0;
+    for(let i=0;i<n;i++){inc[i]=eq[a0+i+1]-eq[a0+i];m+=inc[i]}m=m/n*h;
+    const N=52560,B=1008,nb=Math.ceil(N/B),out=new Float64Array(R);let s=seed>>>0;
+    const rnd=()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296};
+    for(let r=0;r<R;r++){let e=0,pk=-Infinity,md=0,c=0;
+      for(let b=0;b<nb&&c<N;b++){const st=Math.floor(rnd()*(n-B));for(let k=0;k<B&&c<N;k++,c++){e+=inc[st+k]-m;if(e>pk)pk=e;else if(pk-e>md)md=pk-e}}
+      out[r]=tot?md/tot*100:0}
+    out.sort();return q=>{const x=(R-1)*q/100,lo=Math.floor(x);return out[lo]+(lo+1<R?(out[lo+1]-out[lo])*(x-lo):0)};
+  },
+  run(S,J,nom,ver){
+    const L=J.L,eq=new Float64Array(L);let tot=0;
+    for(let i=0;i<nom.length;i++){const n=nom[i];tot+=n;if(!n)continue;const a=CORE.row(S,i,ver);for(let t=0;t<L;t++)eq[t]+=n*a[t]}
+    const dd=new Float64Array(L);let pk=-Infinity,mdd=0,mT=0,u=0,uw=0,uwMax=0;
+    for(let t=0;t<L;t++){if(eq[t]>pk)pk=eq[t];const v=pk-eq[t];dd[t]=v;if(v>mdd){mdd=v;mT=t}
+      const p=tot?v/tot*100:0;u+=p*p;uw=v>1e-6?uw+1:0;if(uw>uwMax)uwMax=uw}
+    const s=Float64Array.from(dd).sort();
+    const pct=q=>{const h=(L-1)*q/100,lo=Math.floor(h);return s[lo]+(lo+1<L?(s[lo+1]-s[lo])*(h-lo):0)};
+    const df=ix=>{const o=[];for(let k=0;k+1<ix.length;k++)o.push(eq[ix[k+1]]-eq[ix[k]]);return o};
+    const w=df(J.wi),m=df(J.mi),nW=w.length,mean=w.reduce((a,b)=>a+b,0)/nW;
+    const sd=Math.sqrt(w.reduce((a,b)=>a+(b-mean)**2,0)/(nW-1)),dn=Math.sqrt(w.reduce((a,b)=>a+Math.min(b,0)**2,0)/nW);
+    const days=(L-1)*10/1440,net=eq[L-1],ws=[...w].sort((a,b)=>a-b);
+    return {eq,dd,tot,net,roi:tot?net/tot*100:0,mdd,mT,p95:pct(95),p98:pct(98),p99:pct(99),cal:mdd?net*365/days/mdd:0,
+      sh:sd?Math.sqrt(52)*mean/sd:0,so:dn?Math.sqrt(52)*mean/dn:0,cv:mean?sd/mean:0,negW:w.filter(x=>x<0).length,nW,
+      negM:m.filter(x=>x<0).length,nM:m.length,worstW:ws[0],medW:ws[nW>>1],s1h:CORE.sdk(eq,6)/tot*100,s10:CORE.sdk(eq,1)/tot*100,cv1h:CORE.cvk(eq,6),ulcer:Math.sqrt(u/L),uwDays:uwMax*10/1440,w,m};
+  }
+};
+
+{
+const $=s=>document.querySelector(s);
+const f=(x,d=0)=>(Math.abs(x)<5e-13?0:x).toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pb=document.createElement('i');pb.style.display='none';document.body.appendChild(pb);
+const cc=v=>{pb.style.color=`var(${v})`;return getComputedStyle(pb).color};
+const sg=(x,d=0)=>(x>0?'+':'')+f(x,d);
+const LIVE=[300, 95, 280, 150, 226, 226, 200, 200, 220, 200, 500, 370, 210, 250, 200, 320, 250, 150, 250];
+let J,S,A,B,BMC=null,mcT=null,nom,ver=41,base,tg=4597,selW=-1,pend=false;
+const KP=[['net','Net (USDT)',1,0],['roi','Getiri / nominal %',1,1],['s1h','1 saat sapma % (nominal)',-1,3],['s10','10 dk sapma % (nominal)',-1,4],['cv1h','1 saat CV',-1,2],['mdd','MaxDD (USDT)',-1,2],['p95','DD P95',-1,1],['p98','DD P98',-1,1],['p99','DD P99',-1,1],['cal','Calmar',1,2],['sh','Sharpe (haftalık)',1,3],['so','Sortino (haftalık)',1,1],['cv','Haftalık CV',-1,4],['negW','Negatif hafta',-1,0],['negM','Negatif ay',-1,0],['ulcer','Ulcer % (nominal)',-1,3],['uwDays','En uzun su altı (gün)',-1,1],['worstW','En kötü hafta',1,1]];
+const save=()=>{try{localStorage.setItem('cyb-reg-6',JSON.stringify({nom,ver,base,tg}))}catch(e){}};
+const dt=i=>new Date(J.t0+i*600000).toLocaleString('tr-TR',{timeZone:'Europe/Istanbul',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+function kpis(){
+  $('#kpis').innerHTML=KP.map(([k,l,dir,d])=>{const a=A[k],b=B[k],x=a-b,t=Math.abs(x)<Math.pow(10,-d)/2;
+    const c=t?'':(x*dir>0?'up':'dn');const ex=k==='negW'?' / '+A.nW:k==='negM'?' / '+A.nM:'';
+    return `<div class="k"><span>${l}</span><b>${f(a,d)}${ex}</b><i>baz ${f(b,d)} · <span class="${c}">${t?'aynı':sg(x,d)}</span></i></div>`}).join('');
+  const red=A.mdd>B.mdd+0.005||A.cal<B.cal-0.0005,diff=Math.abs(A.tot-tg)>5,xmr=J.kol.reduce((s,k,i)=>s+(k.sym==='XMR'?nom[i]:0),0);
+  $('#chips').innerHTML=`<span class="chip ${red?'bad':'ok'}">${red?'Kırmızı çizgi aşıldı: '+[A.mdd>B.mdd+0.005?'MaxDD':'',A.cal<B.cal-0.0005?'Calmar':''].filter(Boolean).join(' + '):'Kırmızı çizgiler korunuyor: MaxDD ve Calmar'}</span>`+
+    `<span class="chip ${diff?'bad':''}">Toplam ${f(A.tot)} / hedef ${f(tg)} USDT</span><span class="chip">XMR payı %${f(A.tot?xmr/A.tot*100:0,1)}</span><span class="chip">MaxDD dibi ${dt(A.mT)}</span><span class="chip">DOGE: V7 SERİ (7a533)</span>`;
+}
+function env(eq,a,m,n,tot){ // min-max decimation per pixel column, % of own nominal, eq relative to eq[a]
+  const lo=new Float64Array(n),hi=new Float64Array(n),dd=new Float64Array(n),b0=eq[a];let pk=-Infinity;
+  for(let x=0;x<n;x++){const s=Math.floor(x*m/n),z=Math.max(s+1,Math.floor((x+1)*m/n));let l=Infinity,h=-Infinity,d=0;
+    for(let i=a+s;i<a+z;i++){const v=(eq[i]-b0)/tot*100;if(v<l)l=v;if(v>h)h=v;if(v>pk)pk=v;if(pk-v>d)d=pk-v}lo[x]=l;hi[x]=h;dd[x]=d}
+  return {lo,hi,dd};
+}
+function zig(g,P,x0,y,col,w){g.strokeStyle=col;g.lineWidth=w;g.beginPath();for(let x=0;x<P.lo.length;x++){x?g.lineTo(x0+x,y(P.hi[x])):g.moveTo(x0,y(P.hi[0]));g.lineTo(x0+x,y(P.lo[x]))}g.stroke()}
+function axis(g,W,pl,y,txt){const yy=Math.round(y)+.5;g.beginPath();g.moveTo(pl,yy);g.lineTo(W-10,yy);g.stroke();g.fillText(txt,2,yy+4)}
+function draw(){
+  const c=$('#cv'),W=c.clientWidth,H=c.clientHeight,r=devicePixelRatio||1;c.width=W*r;c.height=H*r;const g=c.getContext('2d');g.scale(r,r);
+  if(!A)return;const col=cc,L=J.L,pl=W<520?48:58,pw=W-pl-10,n=Math.max(1,Math.floor(pw)),eh=Math.round(H*.6),dt0=eh+26,dh=H-dt0-24;
+  const pa=env(A.eq,0,L,n,A.tot),pb=env(B.eq,0,L,n,B.tot);
+  const emax=Math.max(...pa.hi,...pb.hi,.01),emin=Math.min(0,...pa.lo,...pb.lo),dmax=Math.max(...pa.dd,...pb.dd,.01);
+  const ye=v=>8+(eh-8)*(1-(v-emin)/(emax-emin)),yd=v=>dt0+dh*(v/dmax);
+  g.font='12px Hanken Grotesk, sans-serif';g.fillStyle=col('--mut');g.strokeStyle=col('--line');g.lineWidth=1;
+  for(const v of [0,emax/2,emax])axis(g,W,pl,ye(v),'%'+f(v,0));
+  axis(g,W,pl,yd(0),'%0');axis(g,W,pl,yd(dmax),'−%'+f(dmax,2));
+  for(let y=2024;y<=2026;y++){const i=(Date.UTC(y,0,1)-3*3600e3-J.t0)/600000,x=pl+i/L*pw;g.beginPath();g.moveTo(x+.5,8);g.lineTo(x+.5,H-20);g.stroke();g.fillText(String(y),x+3,H-6)}
+  g.fillStyle=col('--yl');g.beginPath();g.moveTo(pl,yd(0));for(let x=0;x<n;x++)g.lineTo(pl+x,yd(pa.dd[x]));g.lineTo(pl+n-1,yd(0));g.fill();
+  g.strokeStyle=col('--mut');g.lineWidth=1;g.beginPath();for(let x=0;x<n;x++)x?g.lineTo(pl+x,yd(pb.dd[x])):g.moveTo(pl,yd(pb.dd[0]));g.stroke();
+  zig(g,pb,pl,ye,col('--mut'),1);zig(g,pa,pl,ye,col('--ink'),1.4);
+  c.onmousemove=e=>{const x=e.offsetX-pl;if(x<0||x>pw)return;const i=Math.min(L-1,Math.floor(x/pw*L));
+    $('#rd').textContent=`${dt(i)} · aday ${f(A.eq[i],1)} USDT (%${f(A.eq[i]/A.tot*100,1)}), zirve altı %${f(A.dd[i]/A.tot*100,2)} · baz ${f(B.eq[i],1)} (%${f(B.eq[i]/B.tot*100,1)}), zirve altı %${f(B.dd[i]/B.tot*100,2)}`};
+}
+function roll1h(eq,a,m,n,tot){ // 7-day rolling std of 1h PnL, warm-up taken from data before the window
+  const W7=168,st=Math.max(0,a-W7*6),nh=Math.floor((a+m-1-st)/6),h=new Float64Array(nh);
+  for(let k=0;k<nh;k++)h[k]=eq[st+6*k+6]-eq[st+6*k];
+  const rs=new Float64Array(nh).fill(NaN);let s1=0,s2=0;
+  for(let k=0;k<nh;k++){s1+=h[k];s2+=h[k]*h[k];if(k>=W7){s1-=h[k-W7];s2-=h[k-W7]**2}if(k>=W7-1)rs[k]=Math.sqrt(Math.max((s2-s1*s1/W7)/(W7-1),0))/tot*100}
+  const Q=new Float64Array(n);for(let x=0;x<n;x++){const z=a+Math.max(Math.floor(x*m/n)+1,Math.floor((x+1)*m/n))-1;Q[x]=rs[Math.min(nh-1,Math.max(0,Math.floor((z-st)/6)-1))]}
+  return Q;
+}
+function drawWin(id,d){
+  const c=$('#'+id),W=c.clientWidth,H=c.clientHeight,r=devicePixelRatio||1;c.width=W*r;c.height=H*r;const g=c.getContext('2d');g.scale(r,r);
+  if(!A)return;const a=J.L-1-d*144,m=J.L-a,pl=W<520?48:58,pw=W-pl-10,n=Math.max(1,Math.floor(pw)),col=cc;
+  const h1=Math.round(H*.46),t2=h1+16,h2=Math.round(H*.2),t3=t2+h2+16,h3=H-t3-22;
+  const pa=env(A.eq,a,m,n,A.tot),pb=env(B.eq,a,m,n,B.tot),qa=roll1h(A.eq,a,m,n,A.tot),qb=roll1h(B.eq,a,m,n,B.tot);
+  const emax=Math.max(...pa.hi,...pb.hi,.01),emin=Math.min(0,...pa.lo,...pb.lo),dmax=Math.max(...pa.dd,...pb.dd,.01);
+  const qv=[...qa,...qb].filter(Number.isFinite),qmax=Math.max(...qv,1e-4);
+  const ye=v=>6+(h1-6)*(1-(v-emin)/(emax-emin)),yd=v=>t2+h2*(v/dmax),yq=v=>t3+h3*(1-v/qmax);
+  g.font='12px Hanken Grotesk, sans-serif';g.strokeStyle=col('--line');g.fillStyle=col('--mut');g.lineWidth=1;
+  axis(g,W,pl,ye(0),'%0');axis(g,W,pl,ye(emax),'%'+f(emax,1));axis(g,W,pl,yd(dmax),'−%'+f(dmax,2));axis(g,W,pl,yq(0),'%0');axis(g,W,pl,yq(qmax),'%'+f(qmax,3));
+  const MN=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'],step=d>200?2:1;let last=-1,k=0;
+  for(let x=0;x<n;x++){const i=a+Math.floor(x*m/n),D=new Date(J.t0+i*600000+3*3600e3),mm=D.getUTCMonth();
+    if(last>=0&&mm!==last){if(k++%step===0){g.beginPath();g.moveTo(pl+x+.5,6);g.lineTo(pl+x+.5,H-20);g.stroke();g.fillText(MN[mm],pl+x+3,H-6)}}last=mm}
+  g.fillStyle=col('--yl');g.beginPath();g.moveTo(pl,yd(0));for(let x=0;x<n;x++)g.lineTo(pl+x,yd(pa.dd[x]));g.lineTo(pl+n-1,yd(0));g.fill();
+  const ln=(arr,y,cl,w)=>{g.strokeStyle=cl;g.lineWidth=w;g.beginPath();let on=false;for(let x=0;x<n;x++){const v=arr[x];if(!Number.isFinite(v)){on=false;continue}on?g.lineTo(pl+x,y(v)):g.moveTo(pl+x,y(v));on=true}g.stroke()};
+  ln(pb.dd,yd,col('--mut'),1);zig(g,pb,pl,ye,col('--mut'),1);zig(g,pa,pl,ye,col('--ink'),1.4);ln(qb,yq,col('--mut'),1.5);ln(qa,yq,col('--ink'),2);
+}
+function kols(){
+  const tn=J.kol.map((k,i)=>nom[i]*CORE.row(S,i,ver)[J.L-1]);
+  J.kol.forEach((k,i)=>{$('#d'+i).textContent=sg(nom[i]-base.nom[i]);$('#d'+i).className='num '+(nom[i]>base.nom[i]?'up':nom[i]<base.nom[i]?'dn':'');
+    $('#c'+i).textContent=f(tn[i],1);$('#p'+i).textContent='%'+f(A.net?tn[i]/A.net*100:0,1);
+    if(+$('#r'+i).value!==nom[i])$('#r'+i).value=nom[i];if(+$('#n'+i).value!==nom[i])$('#n'+i).value=nom[i]});
+  ['v4','v41'].forEach(v=>$('#'+v).setAttribute('aria-pressed',String(ver===+v.slice(1))));
+  $('#bz').textContent=`Baz: ${f(base.nom.reduce((a,b)=>a+b,0))} USDT · Path-Lock ${base.ver===41?'V4.1 LIQ':'V4'} · net ${f(B.net,1)} · MaxDD ${f(B.mdd,2)} · Calmar ${f(B.cal,2)}`;
+}
+function wmap(){
+  const md=$('#wmd').value,v=A.w.map((x,k)=>md==='a'?x:md==='b'?B.w[k]:x-B.w[k]);
+  const s=[...v].map(Math.abs).sort((a,b)=>a-b)[Math.floor(v.length*.9)]||1,ys=[...new Set(J.wiso.map(x=>x[0]))];
+  const ink=cc('--ink'),bad=cc('--bad');
+  const at=(y,w)=>J.wiso.findIndex(x=>x[0]===y&&x[1]===w);
+  $('#wm').innerHTML=ys.map(y=>`<span class="y">${y}</span>`+Array.from({length:53},(_,j)=>{const k=at(y,j+1);if(k<0)return '<span></span>';
+    const x=v[k],a=Math.min(1,Math.abs(x)/s)*.85+.12,cl=x<0?bad:ink;
+    return `<button data-k="${k}" title="${J.wl[k]} · ${sg(x,1)} USDT" style="background:color-mix(in srgb,${cl} ${Math.round(a*100)}%,transparent);${k===selW?'outline:2px solid var(--yl)':''}" aria-label="${J.wl[k]} ${sg(x,1)}"></button>`}).join('')).join('');
+}
+function week(k){
+  selW=k;const a=J.wi[k],b=J.wi[k+1],c=J.kol.map((q,i)=>{const r=CORE.row(S,i,ver);return [q.name,nom[i]*(r[b]-r[a])]}).sort((x,y)=>x[1]-y[1]);
+  const m=Math.max(...c.map(x=>Math.abs(x[1])),1e-9),end=new Date(Date.parse(J.wl[k+1])-864e5).toISOString().slice(0,10);
+  $('#wh').textContent=`${J.wl[k]} → ${end}`;
+  $('#wd').innerHTML=`<p>Aday <b class="${A.w[k]<0?'dn':''}">${sg(A.w[k],1)}</b> USDT · baz ${sg(B.w[k],1)} · fark ${sg(A.w[k]-B.w[k],1)}</p><div class="kb">`+
+    c.map(([n,x])=>`<div>${n}<div class="b" style="width:${Math.abs(x)/m*100}%;background:${x<0?'var(--bad)':'var(--ink)'}"></div></div><div class="num ${x<0?'dn':''}">${sg(x,1)}</div>`).join('')+'</div>';
+  wmap();
+}
+function months(){
+  const ys=[...new Set(J.ml.map(x=>x.slice(0,4)))],ix=(y,mm)=>J.ml.indexOf(y+'-'+String(mm).padStart(2,'0'));
+  $('#mt').innerHTML='<tr><th>Yıl</th>'+['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'].map(x=>`<th class="num">${x}</th>`).join('')+'<th class="num">Toplam</th></tr>'+
+    ys.map(y=>{let t=0;return `<tr><td>${y}</td>`+Array.from({length:12},(_,j)=>{const k=ix(y,j+1);if(k<0)return '<td></td>';t+=A.m[k];
+      return `<td class="num ${A.m[k]<0?'dn':''}" title="baz ${f(B.m[k],1)}">${f(A.m[k])}</td>`}).join('')+`<td class="num"><b>${f(t)}</b></td></tr>`}).join('');
+}
+const RC=[['net','Net (USDT)',1,0],['yr','Yıllık getiri %',1,1],['mddP','MaxDD % (nominal)',-1,2],['mdd','MaxDD (USDT)',-1,1],['p95','DD P95 (USDT)',-1,1],['p99','DD P99 (USDT)',-1,1],['cal','Calmar',1,1],['s10','10 dk sapma %',-1,4],['s1h','1 saat sapma %',-1,4],['cv1h','1 saat CV',-1,2],['neg','Negatif hafta',-1,0]];
+function recent(){
+  const D=[90,300].map(d=>{const a=J.L-1-d*144;return {d,a,x:CORE.win(A.eq,J,a,A.tot),y:CORE.win(B.eq,J,a,B.tot)}});
+  const cell=(x,y,dir,dg)=>{const v=x-y,t=Math.abs(v)<Math.pow(10,-dg)/2;return `<td class="num">${f(x,dg)}</td><td class="num">${f(y,dg)}</td><td class="num ${t?'':(v*dir>0?'up':'dn')}">${t?'aynı':sg(v,dg)}</td>`};
+  $('#rc').innerHTML='<tr><th>Ölçü</th>'+D.map(o=>`<th class="num">Son ${o.d} gün · aday</th><th class="num">baz</th><th class="num">Δ</th>`).join('')+'</tr>'+
+    RC.map(([k,l,dir,dg])=>`<tr><td>${l}</td>`+D.map(o=>cell(o.x[k],o.y[k],dir,dg)).join('')+'</tr>').join('');
+  for(const o of D)$('#w'+o.d+'t').innerHTML=`Aday net <b>${f(o.x.net)}</b> (baz ${f(o.y.net)}) · MaxDD %${f(o.x.mddP,2)} (baz %${f(o.y.mddP,2)}) · 1 s sapma %${f(o.x.s1h,3)} (baz %${f(o.y.s1h,3)}) · CV ${f(o.x.cv1h,2)} (baz ${f(o.y.cv1h,2)})`;
+  drawWin('w90',90);drawWin('w300',300);
+  $('#rcn').textContent=D.map(o=>`Son ${o.d} gün: ${dt(o.a)} → ${dt(J.L-1)} (${o.x.nW} tam hafta)`).join(' · ')+'. DD pencere başında sıfırlanır; yıllık getiri ve Calmar pencere uzunluğuna göre yıllıklandırılır.';
+}
+function mcRun(){
+  $('#mcn').textContent='Monte Carlo hesaplanıyor…';clearTimeout(mcT);
+  mcT=setTimeout(()=>{const R=2000,sd=20261123,Q=[50,75,90,91,92,93,94,95,96,97,98,99];
+    const fa=[CORE.mc(A.eq,J,A.tot,0,R,sd),CORE.mc(A.eq,J,A.tot,.25,R,sd)];
+    if(!BMC)BMC=[CORE.mc(B.eq,J,B.tot,0,R,sd),CORE.mc(B.eq,J,B.tot,.25,R,sd)];const fb=BMC;
+    const c=(x,y)=>{const v=x-y,t=Math.abs(v)<.005;return `<td class="num">%${f(x,2)}</td><td class="num ${t?'':(v<0?'up':'dn')}">${t?'aynı':sg(v,2)}</td>`};
+    $('#mct').innerHTML='<tr><th>Yüzdelik</th><th class="num">Aday</th><th class="num">Δ baz</th><th class="num">Aday · stres</th><th class="num">Δ baz</th></tr>'+
+      Q.map(q=>`<tr><td>P${q}</td>${c(fa[0](q),fb[0](q))}${c(fa[1](q),fb[1](q))}</tr>`).join('');
+    const ta=fa[1](99),tb=fb[1](99);
+    $('#mcn').innerHTML=`Teminat tabanı (P99, stres): aday <b>%${f(ta,2)} ≈ ${f(ta*A.tot/100)} USDT</b> · baz %${f(tb,2)} ≈ ${f(tb*B.tot/100)} USDT`;},600);
+}
+function recalc(){A=CORE.run(S,J,nom,ver);kpis();recent();mcRun();kols();draw();wmap();months();if(selW>=0)week(selW);save()}
+const go=()=>{if(pend)return;pend=true;requestAnimationFrame(()=>{pend=false;recalc()})};
+const setBase=()=>{B=CORE.run(S,J,base.nom,base.ver);BMC=null};
+fetch('data.json').then(r=>r.json()).then(async j=>{J=j;S=await CORE.load(J);
+  const def={nom:LIVE.slice(),ver:41};base=def;nom=LIVE.slice();
+  try{const s=JSON.parse(localStorage.getItem('cyb-reg-6')||'null');if(s&&s.nom&&s.nom.length===J.kol.length&&s.base&&s.base.nom){nom=s.nom;ver=s.ver===4?4:41;base=s.base;tg=+s.tg||4597}}catch(e){}
+  $('#tg').value=tg;
+  $('#kt').innerHTML=J.kol.map((k,i)=>`<tr><td><b>${k.name}</b><small>${k.tag} · ${k.set}</small></td><td><div class="nm"><input type="range" id="r${i}" min="0" max="1000" step="5" aria-label="${k.name} nominal"><input type="number" id="n${i}" min="0" max="5000" step="5" aria-label="${k.name} nominal USDT"></div></td><td class="num" id="d${i}"></td><td class="num" id="c${i}"></td><td class="num" id="p${i}"></td></tr>`).join('');
+  J.kol.forEach((k,i)=>['r','n'].forEach(p=>$('#'+p+i).addEventListener('input',e=>{const v=Math.max(0,+e.target.value||0);nom[i]=v;go()})));
+  $('#v4').onclick=()=>{ver=4;go()};$('#v41').onclick=()=>{ver=41;go()};
+  $('#tg').oninput=e=>{tg=Math.max(0,+e.target.value||0);go()};
+  $('#fit').onclick=()=>{const s=nom.reduce((a,b)=>a+b,0);if(!s)return;nom=nom.map(x=>Math.round(x*tg/s/5)*5);const d=tg-nom.reduce((a,b)=>a+b,0);const i=nom.indexOf(Math.max(...nom));nom[i]+=d;go()};
+  $('#rb').onclick=()=>{nom=base.nom.slice();go()};
+  $('#df').onclick=()=>{base={nom:LIVE.slice(),ver:41};nom=LIVE.slice();ver=41;tg=4597;$('#tg').value=tg;setBase();go()};
+  $('#b5').onclick=()=>{nom=[200, 105, 235, 85, 235, 150, 300, 165, 245, 285, 500, 450, 225, 375, 290, 265, 125, 150, 215].slice();ver=41;go()};
+  $('#bl').onclick=()=>{nom=[210, 120, 175, 195, 225, 210, 300, 125, 285, 265, 595, 385, 210, 375, 260, 200, 125, 150, 190].slice();ver=41;go()};
+  $('#sc').onclick=()=>{nom=LIVE.slice();ver=41;go()};
+  $('#mk').onclick=()=>{base={nom:nom.slice(),ver};setBase();go()};
+  $('#wmd').onchange=wmap;$('#wm').onclick=e=>{const b=e.target.closest('button[data-k]');if(b)week(+b.dataset.k)};
+  setBase();recalc();$('#rd').textContent='Çizimin üzerinde gezin: tarih, aday ve baz değeri.';
+  const ro=new ResizeObserver(draw);ro.observe($('#fig'));
+  const rw=new ResizeObserver(()=>{drawWin('w90',90);drawWin('w300',300)});rw.observe($('.wins'));
+  const th=()=>{draw();wmap();drawWin('w90',90);drawWin('w300',300)};const mo=new MutationObserver(th);mo.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',th)}catch(e){}
+}).catch(e=>{$('#rd').textContent='Veri yüklenemedi: '+e.message});
+}
+</script>
+</body></html>
