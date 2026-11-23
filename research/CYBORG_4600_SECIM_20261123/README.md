@@ -19,3 +19,13 @@ Araştırma portföyü kararı. Canlı Wunder dağılımı değişikliği ayrı 
 Karşılaştırma adayları (aynı motor): Beton-500 (net 27.535, MaxDD 2,65, L/S 0,87), Beton-LS (net 26.772, MaxDD 2,69, 1 saat sapma en düşük, L/S 1,01). Kullanıcı L/S ≈ 1 ve son 90 gün kârını tercih etti.
 
 İnteraktif regülatör (claude.ai artifact, sahibine özel): https://claude.ai/artifact/SQw6EPNX2XbCAHdxgKie9D — "Seçimim (23 Kas)" düğmesi.
+
+## Canlı Wunder son hali (23 Kas 09:50) — tüm Instant ayarları dahil
+Nominaller (Pine ×2): Path-Lock 300/95 · Micro 280/150 · MANU 226/226 · XMR Short 5dk 200 · 4dk 200 · 2dk 320 · DOGE Long 220 · DOGE 3dk 200 · BTCDOM 500 · LTC Trinity 370 · Polaris 210 · ETC 250 · ADA 200 · PEPE 250 · BAT 150 · DOGE V7 SERİ 250 = 4.597.
+Değişen Wunder kuralları: DOGE Short SL10 + TP %2→%10 (eski %1,5→%40: −146 USDT); DOGE Long SL17 + TP %2→%10 + trailing 4%|0,5%; LTC Trinity SL10 + TP %4→%50 (modelde yoktu, sapmayı en çok düşüren). BAT SL15, XMR Short 4dk SL8, XMR Short 2dk SL8 hiç tetiklenmiyor (etki 0).
+
+| Net | MaxDD | DD P95/P99 | Calmar | 10 dk sapma | 1 saat sapma | Neg. hafta | Son 90/300 |
+|---|---|---|---|---|---|---|---|
+| 26.213 | %3,23 | 1,24/1,88 | 50,1 | %0,0578 | %0,1453 | 7 | 1.321 / 4.327 |
+
+12 ay ileri MaxDD (%): P50 2,60 · P90 3,41 · P95 3,71 · P99 4,48; kenar −%25: P95 4,97 · P99 6,02 → teminat tabanı ≈ %6 (≈277 USDT).
