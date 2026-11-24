@@ -203,3 +203,51 @@ def sim5(o, h, l, c, atr, aL, aS, ats, atH, bL, bS, bts, btH):
                 pos = wB; own = 2; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; ti = i; mae = 0.0; stop = ep - pos * bts * atr[i]
         eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
     return eq, T[:nt]
+
+
+@njit(cache=True)
+def sim6(o, h, l, c, atr, eL, eS, s, H, act, trl, tp, capPct, upL, D4, xL, xS):
+    """Tek motor + çıkış mühendisliği. s: SL ATR · H: süre · act/trl: +act ATR sonra trl ATR iz (0=yok) · tp: hedef ATR (0=yok)
+    capPct: zarar kes en fazla % (0=yok) · upL: True olan barda açık long TREND moduna geçer (süre yok, iz = en iyi kapanış − D4)
+    xL/xS: long/short için erken çıkış sinyali (bar kapanışı)."""
+    n = len(c); eq = np.zeros(n); real = 0.0; pos = 0; ep = 0.0; q = 0.0; stop = 0.0; tgt = 0.0; ei = 0; mae = 0.0; mfe = 0.0
+    ae = 0.0; best = 0.0; trend = False
+    T = np.zeros((n // 2 + 10, 9)); nt = 0
+    for i in range(1, n):
+        if pos != 0:
+            hitS = (pos == 1 and l[i] <= stop) or (pos == -1 and h[i] >= stop)
+            hitT = tgt > 0 and ((pos == 1 and h[i] >= tgt) or (pos == -1 and l[i] <= tgt))
+            mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+            mfe = max(mfe, (h[i] - ep) / ep if pos == 1 else (ep - l[i]) / ep)
+            if hitS or hitT:
+                if hitS:
+                    xp = (min(o[i], stop) - TICK) if pos == 1 else (max(o[i], stop) + TICK)
+                else:
+                    xp = (max(o[i], tgt) - TICK) if pos == 1 else (min(o[i], tgt) + TICK)
+                pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+                T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = mfe; T[nt, 8] = 1 if trend else 0; nt += 1
+                pos = 0
+        want = 1 if eL[i] else (-1 if eS[i] else 0)
+        tout = pos != 0 and (not trend) and i - ei >= H
+        ex = pos != 0 and ((want != 0 and want != pos) or tout or (pos == 1 and xL[i]) or (pos == -1 and xS[i]))
+        blk = pos if (tout and want == pos) else 0
+        if ex:
+            xp = c[i] - TICK * pos; pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+            T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = mfe; T[nt, 8] = 1 if trend else 0; nt += 1
+            pos = 0
+        if pos == 0 and want != 0 and want != blk and not np.isnan(atr[i]):
+            pos = want; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; mae = 0.0; mfe = 0.0; ae = atr[i]; best = c[i]; trend = False
+            stop = ep - pos * s * ae
+            if capPct > 0:
+                stop = max(stop, ep * (1 - capPct)) if pos == 1 else min(stop, ep * (1 + capPct))
+            tgt = ep + pos * tp * ae if tp > 0 else 0.0
+        if pos != 0:
+            best = max(best, c[i]) if pos == 1 else min(best, c[i])
+            if pos == 1 and upL[i] and not trend and not np.isnan(D4[i]):
+                trend = True; tgt = 0.0
+            if trend:
+                stop = max(stop, best - D4[i])
+            elif trl > 0 and (best - ep) * pos >= act * ae:
+                stop = max(stop, best - trl * ae) if pos == 1 else min(stop, best + trl * ae)
+        eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
+    return eq, T[:nt]
