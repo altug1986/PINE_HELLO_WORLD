@@ -25,9 +25,12 @@ Hedef tablo sütunları: net $ ve %, yıllık %, MaxDD, DD P95/P98/P99, Calmar, 
 | `ZEC_TOP_TRADER_POSITIONS_5m_…` (+AUDIT, MISSING_DAYS) | top trader pozisyon L/S ham | 2021-12-01 → | 1 gün 404 (2023-12-13) |
 | `ZECUSDT_PERP_TAKER_BUY_SELL_5m_…` | taker al/sat ZEC + USDT, delta, pay | 2021-01-01 → | hacim ve kapanış 1 dk ile %100 eşleşiyor |
 | `ZECUSDT_FUNDING_EVENTS_20210101_20261123.csv` | funding olayları (8 s) | 2021-01-01 → **2026-10-31** | Kasım 2026 eksik |
+| `ZECUSDT_1m_FLOW_UTC_{yıl}.csv.gz` ×6 | 1 dk taker alış (ZEC/USDT), işlem sayısı, quote hacim — 1 dk OHLC ile aynı `time` | 2021-01-01 → 2026-11-23 | eksik dosya 0/93 |
+| `ZECUSDT_INDEX_PRICE_1m_UTC_…` | Binance index fiyatı 1 dk kapanış → basis = vadeli / index − 1 | aynı | basis P1/P50/P99 −28,7 / −3,9 / +28,4 bps |
+| `ZECUSDT_PREMIUM_INDEX_1m_UTC_…` | premium index 1 dk kapanış (funding'in hammaddesi) | aynı | basis ile kor. 0,85 |
 | `candidates_1h/ZECUSDT_1h.csv.gz` | coin seçim aşamasının 1 s verisi | — | — |
 
-Güncelleme: `.github/workflows/zec_1m.yml`, `zec_oi.yml` (workflow_dispatch). Yükleyici: `ZEC/engine/zec_data.py` → `load(tf_min=2, lag=0)`.
+Güncelleme: `.github/workflows/zec_1m.yml`, `zec_oi.yml`, `zec_micro.yml` (workflow_dispatch). Edge araştırma kütüğü: `research/EDGE_LOG.md` (skill: `cyborg-micro-edge`). Yükleyici: `ZEC/engine/zec_data.py` → `load(tf_min=2, lag=0)`.
 
 ### Zaman kuralı (değişmez)
 - **Metrics/OI damgası son etiketli:** ΔOI(t) en güçlü [t−5, t) hacmiyle eşleşiyor (Spearman 0,579; bir sonraki pencere 0,537; önceki 0,447). Bar kapanışı T'de yalnız **damga ≤ T − 5 dk** kullanılır (1 periyot güvenlik). Her OI kuralı 0/1/2 ek gecikmede ayrıca geçmeli.

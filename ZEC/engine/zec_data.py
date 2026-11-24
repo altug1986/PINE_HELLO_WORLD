@@ -20,6 +20,8 @@ YEARS = ['20210101_THROUGH_20211231', '20220101_THROUGH_20221231', '20230101_THR
 F_METRICS = 'ZECUSDT_METRICS_5m_UTC_20211201_THROUGH_20261123.csv.gz'
 F_TAKER = 'ZECUSDT_PERP_TAKER_BUY_SELL_5m_UTC_20210101_THROUGH_20261123.csv.gz'
 F_FUND = 'ZECUSDT_FUNDING_EVENTS_20210101_20261123.csv'
+F_INDEX = 'ZECUSDT_INDEX_PRICE_1m_UTC_20210101_THROUGH_20261123.csv.gz'
+F_PREM = 'ZECUSDT_PREMIUM_INDEX_1m_UTC_20210101_THROUGH_20261123.csv.gz'
 TICK = 0.01
 FIVE = pd.Timedelta('5min')
 
@@ -54,6 +56,19 @@ def load(tf_min=2, src=U, lag=0):
     fu = pd.read_csv(src + F_FUND)
     fu.index = pd.to_datetime(fu.funding_time_ms, unit='ms')
     feat['funding_pct'] = fu.funding_rate_percent.sort_index().reindex(tclose, method='ffill', tolerance=pd.Timedelta('9h')).values  # 2026-11 boş (kaynak 10-31'de bitiyor)
+    # 1 dk mikro veri (bar içinde toplanır; 1 dk mum kapanışında bilinir → TF bar kapanışında tam)
+    fl = pd.concat([pd.read_csv(src + f'ZECUSDT_1m_FLOW_UTC_{y}.csv.gz') for y in YEARS], ignore_index=True)
+    fl.index = pd.to_datetime(fl.time, unit='ms')
+    fb = fl.resample(f'{tf_min}min', label='left', closed='left').agg(
+        {'taker_buy_base': 'sum', 'trades': 'sum', 'quote_volume': 'sum'}).reindex(b.index)
+    feat['taker_buy_base'] = fb.taker_buy_base.values
+    feat['taker_delta_base'] = 2 * fb.taker_buy_base.values - b.volume.values   # alış − satış
+    feat['trades'] = fb.trades.values
+    for f_, c in [(F_INDEX, 'index_close'), (F_PREM, 'premium_close')]:
+        s = pd.read_csv(src + f_)
+        s.index = pd.to_datetime(s.time, unit='ms')
+        feat[c] = s[c].resample(f'{tf_min}min', label='left', closed='left').last().reindex(b.index).values
+    feat['basis'] = b.close.values / feat['index_close'].values - 1
     return {'bars': b, 'feat': feat, 'tclose': tclose}
 
 
