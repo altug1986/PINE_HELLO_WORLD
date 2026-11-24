@@ -28,9 +28,29 @@ Hedef tablo sütunları: net $ ve %, yıllık %, MaxDD, DD P95/P98/P99, Calmar, 
 | `ZECUSDT_1m_FLOW_UTC_{yıl}.csv.gz` ×6 | 1 dk taker alış (ZEC/USDT), işlem sayısı, quote hacim — 1 dk OHLC ile aynı `time` | 2021-01-01 → 2026-11-23 | eksik dosya 0/93 |
 | `ZECUSDT_INDEX_PRICE_1m_UTC_…` | Binance index fiyatı 1 dk kapanış → basis = vadeli / index − 1 | aynı | basis P1/P50/P99 −28,7 / −3,9 / +28,4 bps |
 | `ZECUSDT_PREMIUM_INDEX_1m_UTC_…` | premium index 1 dk kapanış (funding'in hammaddesi) | aynı | basis ile kor. 0,85 |
+| `ZECUSDT_BOOKDEPTH_1m_UTC_{yıl}.csv.gz` ×4 | emir defteri: fiyatın ±%1–5 (2026-01-15'ten ±%0,2) içinde bekleyen alış/satış toplamı USDT, dakikanın son anlık görüntüsü (`snap_s`) | 2023-01-01 → 2026-11-23 | 1.420 gün, hatalı 0 |
+| `ZECUSDT_WHALE_PRINTS_1m_UTC_{yıl}.csv.gz` ×7 | balina printleri: taker emri ≥10k/50k/200k/1M USDT adet + tutar, yön, en büyük emir (seyrek: yalnız print olan dakikalar) | 2020-02 → 2026-11-23 | 104 dosya, hatalı 0, 9,45 M emir |
 | `candidates_1h/ZECUSDT_1h.csv.gz` | coin seçim aşamasının 1 s verisi | — | — |
 
 Güncelleme: `.github/workflows/zec_1m.yml`, `zec_oi.yml`, `zec_micro.yml` (workflow_dispatch). Edge araştırma kütüğü: `research/EDGE_LOG.md` (skill: `cyborg-micro-edge`). Yükleyici: `ZEC/engine/zec_data.py` → `load(tf_min=2, lag=0)`.
+
+### 2.1 MASTER 1m — tam senkron tek tablo
+`data/ZECUSDT_MASTER_1m_SYNC_{2021…2026}.parquet` (56 kolon, 3.093.120 satır; üretici `engine/build_master.py`, denetim `data_quality/MASTER_SENKRON_DENETIM.json`). Okuma: `zec_data.load(tf_min=2, lag=0)`.
+Satır = 1 dk bar, `time` = açılış (UTC ms); **satırdaki her değer bar kapanışında (T = time + 60 s) bilinen bilgidir.**
+
+| Kolon grubu | Kaynak | Bilindiği an kuralı | Kapsam |
+|---|---|---|---|
+| `open…volume`, `quote_volume`, `trades`, `taker_buy_*`, `taker_delta_base` | 1m kline | aynı bar | 2021-01 → 2026-11-23 |
+| `index_close`, `basis_bps`, `premium_bps` | index / premium 1m | aynı bar | aynı |
+| `funding_pct` | funding olayları | son olay ≤ T (9 s tolerans) | → 2026-11-01 |
+| `oi_zec`, `oi_usdt`, `tt_acc_ls`, `tt_pos_ls`, `glb_ls`, `taker_ls_5m`, `btc_oi`, `xmr_oi` | metrics 5m | damga ≤ T − 5 dk (`metrics_age_s` = T − damga, P50 420 s / P99 540 s) | ZEC/XMR 2021-12 →, BTC OI → 2026-11-19 |
+| `book_m5…m1`, `book_m02`, `book_p02`, `book_p1…p5` | bookDepth | son anlık görüntü < T (`book_age_s`; %99,5'i aynı bar içinde) | 2023-01 →; ±0,2 2026-01-15 → |
+| `wh_{buy,sell}_{max,n10k…q1000k}` | aggTrades (aynı ms + yön = bir taker emri) | aynı bar; print yoksa 0 | 2021-01 → |
+| `btc_close`, `xmr_close` | BTC/XMR 1m | aynı bar | 2021-01 → 2026-11-23 |
+
+TF'ye toplama: OHLC standart, akış ve balina adet/tutar **toplam**, `wh_*_max` **maks**, durum serileri **son değer**. `lag=k` metrics serilerini k × 5 dk ek geciktirir.
+
+Senkron kanıtı (denetim dosyası): taker alış > hacim 0 dakika · balina alışı taker alış tutarını aşan dakika %0,19 · balina alışı ↔ taker alış korelasyonu gecikme 0'da 0,984 (±1: 0,55 / 0,54) · ZEC ↔ BTC ve ZEC ↔ XMR 1 dk getiri korelasyonu yalnız gecikme 0'da tepe (0,53 / 0,39; komşular < 0,04) · ΔOI son etiket testi (aşağıda).
 
 ### Zaman kuralı (değişmez)
 - **Metrics/OI damgası son etiketli:** ΔOI(t) en güçlü [t−5, t) hacmiyle eşleşiyor (Spearman 0,579; bir sonraki pencere 0,537; önceki 0,447). Bar kapanışı T'de yalnız **damga ≤ T − 5 dk** kullanılır (1 periyot güvenlik). Her OI kuralı 0/1/2 ek gecikmede ayrıca geçmeli.

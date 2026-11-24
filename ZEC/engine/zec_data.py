@@ -1,80 +1,54 @@
-"""ZECUSDT.P veri yükleyici — GitHub data/ → 2 dk bar + güvenli hizalanmış OI / balina / taker / funding.
+"""ZECUSDT.P veri yükleyici — MASTER 1m (tam senkron) → istenen zaman dilimi.
 
-Kullanım:
     from zec_data import load
-    D = load(tf_min=2)          # dict: bars (DataFrame), feat (DataFrame, bar index'li)
+    X = load(tf_min=2)            # DataFrame, index = bar AÇILIŞI (UTC), her değer bar KAPANIŞINDA bilinir
+    X = load(tf_min=2, lag=1)     # metrics/OI serileri +1 periyot (5 dk) ek gecikme (gecikme testi)
 
-Zaman kuralı (denetim: ZEC/data_quality/KALITE_RAPORU.json):
-  * 1m `time` = bar AÇILIŞI (UTC ms). TF bar = label left, closed left; dolum = bar kapanışı.
-  * metrics / OI damgası = SON etiketli (anlık görüntü t anında). Bar kapanışı T'de yalnız
-    damga <= T - 5 dk değerleri kullanılır (1 periyot güvenlik payı). `lag` ile ek gecikme testi (0/1/2).
-  * taker 5m `open_time_ms` = pencere açılışı; değer pencere kapanışında (`available_from_utc`) bilinir.
-  * funding: olay zamanında bilinir; olaydan sonra ffill.
-  * Boşluk doldurulmaz (2022-02-26→03-01, 2022-04-01→04-03 Binance'te de veri yok). Sıfır OI → NaN.
+Kaynak: GitHub data/ZECUSDT_MASTER_1m_SYNC_{yıl}.parquet (üretici: build_master.py, denetim: MASTER_SENKRON_DENETIM.json).
+Kural sözlüğü: ZEC/README.md §2.1. Önbellek: ~/.cache/zec_master/.
 """
-import pandas as pd, numpy as np
+import os, urllib.request, pandas as pd
 
 U = 'https://raw.githubusercontent.com/altug1986/PINE_HELLO_WORLD/main/data/'
-YEARS = ['20210101_THROUGH_20211231', '20220101_THROUGH_20221231', '20230101_THROUGH_20231231',
-         '20240101_THROUGH_20241231', '20250101_THROUGH_20251231', '20260101_THROUGH_20261123']
-F_METRICS = 'ZECUSDT_METRICS_5m_UTC_20211201_THROUGH_20261123.csv.gz'
-F_TAKER = 'ZECUSDT_PERP_TAKER_BUY_SELL_5m_UTC_20210101_THROUGH_20261123.csv.gz'
-F_FUND = 'ZECUSDT_FUNDING_EVENTS_20210101_20261123.csv'
-F_INDEX = 'ZECUSDT_INDEX_PRICE_1m_UTC_20210101_THROUGH_20261123.csv.gz'
-F_PREM = 'ZECUSDT_PREMIUM_INDEX_1m_UTC_20210101_THROUGH_20261123.csv.gz'
-TICK = 0.01
-FIVE = pd.Timedelta('5min')
+YEARS = range(2021, 2027)
+CACHE = os.path.expanduser('~/.cache/zec_master/')
+SUM = ['volume', 'quote_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'taker_delta_base']
+MAX = ['wh_buy_max', 'wh_sell_max']
+METRICS = ['oi_zec', 'oi_usdt', 'tt_acc_ls', 'tt_pos_ls', 'glb_ls', 'taker_ls_5m', 'btc_oi', 'xmr_oi']
 
 
-def _asof(series, when, lag_steps=0, tol='20min'):
-    """series: damga index'li; when: bilgi kesim zamanları. lag_steps: ek 5 dk gecikme."""
-    s = series.sort_index()
-    if lag_steps:
-        s = s.shift(lag_steps)
-    return s.reindex(when, method='ffill', tolerance=pd.Timedelta(tol)).values
+def master(src=U, years=YEARS):
+    os.makedirs(CACHE, exist_ok=True); parts = []
+    for y in years:
+        fn = f'ZECUSDT_MASTER_1m_SYNC_{y}.parquet'; p = CACHE + fn
+        if not os.path.exists(p):
+            if src.startswith('http'):
+                urllib.request.urlretrieve(src + fn, p)
+            else:
+                p = src + fn
+        parts.append(pd.read_parquet(p))
+    X = pd.concat(parts, ignore_index=True)
+    X.index = pd.to_datetime(X.pop('time'), unit='ms')
+    X[['open', 'high', 'low', 'close']] = X[['open', 'high', 'low', 'close']].astype('float64').round(2)  # tick 0,01 (float32 kalıntısı yok)
+    return X
 
 
-def load(tf_min=2, src=U, lag=0):
-    m = pd.concat([pd.read_csv(src + f'ZECUSDT_1m_UTC_{y}.csv.gz') for y in YEARS], ignore_index=True)
-    m.index = pd.to_datetime(m.time, unit='ms')
-    b = m.resample(f'{tf_min}min', label='left', closed='left').agg(
-        {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'}).dropna()
-    b[['open', 'high', 'low', 'close']] = (b[['open', 'high', 'low', 'close']] / TICK).round() * TICK
-    tclose = b.index + pd.Timedelta(minutes=tf_min)
-    cut = tclose - FIVE                                  # metrics/OI bilgi kesimi
-    x = pd.read_csv(src + F_METRICS)
-    x.index = pd.to_datetime(x.timestamp_ms, unit='ms')
-    x.loc[x.open_interest_zec <= 0, ['open_interest_zec', 'open_interest_usdt']] = np.nan
-    feat = pd.DataFrame(index=b.index)
-    for c in ['open_interest_zec', 'open_interest_usdt', 'top_trader_accounts_ls',
-              'top_trader_positions_ls', 'global_accounts_ls', 'taker_long_short_vol_ratio']:
-        feat[c] = _asof(x[c], cut, lag)
-    tk = pd.read_csv(src + F_TAKER, usecols=['open_time_ms', 'taker_buy_usdt', 'taker_sell_usdt', 'total_usdt'])
-    tk.index = pd.to_datetime(tk.open_time_ms, unit='ms') + FIVE    # bilindiği an = pencere kapanışı
-    for c in ['taker_buy_usdt', 'taker_sell_usdt', 'total_usdt']:
-        feat[c] = _asof(tk[c], tclose, lag)
-    fu = pd.read_csv(src + F_FUND)
-    fu.index = pd.to_datetime(fu.funding_time_ms, unit='ms')
-    feat['funding_pct'] = fu.funding_rate_percent.sort_index().reindex(tclose, method='ffill', tolerance=pd.Timedelta('9h')).values  # 2026-11 boş (kaynak 10-31'de bitiyor)
-    # 1 dk mikro veri (bar içinde toplanır; 1 dk mum kapanışında bilinir → TF bar kapanışında tam)
-    fl = pd.concat([pd.read_csv(src + f'ZECUSDT_1m_FLOW_UTC_{y}.csv.gz') for y in YEARS], ignore_index=True)
-    fl.index = pd.to_datetime(fl.time, unit='ms')
-    fb = fl.resample(f'{tf_min}min', label='left', closed='left').agg(
-        {'taker_buy_base': 'sum', 'trades': 'sum', 'quote_volume': 'sum'}).reindex(b.index)
-    feat['taker_buy_base'] = fb.taker_buy_base.values
-    feat['taker_delta_base'] = 2 * fb.taker_buy_base.values - b.volume.values   # alış − satış
-    feat['trades'] = fb.trades.values
-    for f_, c in [(F_INDEX, 'index_close'), (F_PREM, 'premium_close')]:
-        s = pd.read_csv(src + f_)
-        s.index = pd.to_datetime(s.time, unit='ms')
-        feat[c] = s[c].resample(f'{tf_min}min', label='left', closed='left').last().reindex(b.index).values
-    feat['basis'] = b.close.values / feat['index_close'].values - 1
-    return {'bars': b, 'feat': feat, 'tclose': tclose}
+def load(tf_min=2, lag=0, src=U, years=YEARS):
+    X = master(src, years)
+    if lag:
+        X[METRICS] = X[METRICS].shift(5 * lag)
+    if tf_min == 1:
+        return X
+    agg = {c: 'last' for c in X.columns}
+    agg.update({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last'})
+    agg.update({c: 'sum' for c in SUM + [c for c in X.columns if c.startswith('wh_') and c not in MAX]})
+    agg.update({c: 'max' for c in MAX})
+    B = X.resample(f'{tf_min}min', label='left', closed='left').agg(agg)
+    return B[B.close.notna()]
 
 
 if __name__ == '__main__':
     import sys
-    D = load(int(sys.argv[1]) if len(sys.argv) > 1 else 2, src=sys.argv[2] if len(sys.argv) > 2 else U)
-    b, f = D['bars'], D['feat']
-    print(len(b), b.index[0], b.index[-1])
-    print(f.notna().mean().round(3).to_string())
+    B = load(int(sys.argv[1]) if len(sys.argv) > 1 else 2, src=sys.argv[2] if len(sys.argv) > 2 else U)
+    print(len(B), B.index[0], B.index[-1], B.shape[1], 'kolon')
+    print(B.notna().mean().round(3).to_string())
