@@ -1,0 +1,795 @@
+//@version=5
+//@strategy_alert_message {{strategy.order.comment}}
+// NAV: §§CORE_INPUTS§§ §§SAFE_HELPERS§§ §§HTF_GATES§§ §§BLOCK_ENGINES§§ §§PACKET_BLOCKS§§ §§ENTRY_EXIT§§ §§DEBUG_LITE§§
+// REV: LONG ONLY + SHADOW BASELINE PATH-LOCK + FIXED 40D/UNDERWATER VETO //
+// [REV-TRTIME] Türkiye saatiyle 17:35-18:10 arası yeni LONG girişleri engellendi. Exit/SL tarafına dokunulmadı.
+// [REV-MARKERS] TP 3.45 / ISL 1.05 görsel markerları kaldırıldı. Emir/exit mantığına dokunulmadı.
+// [REV-WUNDER-DIRECT] ENTER tek execution noktasında; Wunder socket komutları doğrudan comment literal içinde.
+// [REV-LIQ] (2026-11-23) LİKİDASYON DÖNÜŞÜ MİNİ SİSTEM. Ana sistemin gölge çekirdeğine, kilitlerine ve çıkışlarına dokunulmadı.
+//   Sinyal: kapanışı karar anından en az 5 dk önce olan son 5 dk kaydında 1 saatlik OI değişimi <= -%4 VE fiyat değişimi <= -%3.
+//   Aynı kümede tek olay (24 saat). Gerçek pozisyon yokken ve ana sistemin o bar girişi yokken LONG (aynı LONG kimliği, aynı soket, 500$).
+//   Çıkış: 12 saat sonra kapanışta EXIT-ALL ya da giriş fiyatının %5 altında stop. Ana sistem girerse pozisyonu devralır (yeni emir yok).
+//   OI sembolü koddan otomatik: syminfo.prefix:syminfo.ticker_OI. Veri yoksa mini sistem o barda pas geçer.
+//   Araştırma motoru (TV export işlemleri + XMR OI 5m, TV'de DOĞRULANMADI): 2022-26 net +%5.2 (35 işlem, +173$), 2023-26 +%9.4,
+//   MaxDD 120 -> 120, Calmar 5.62 -> 5.91, DD P99 105.6 -> 104.6. 2022 tek başına -67$ (7 işlem). Komşu ayarlar 26/30 iki dönemde kârlı.
+// [REV-PARTIAL] (2026-11-23) PARTIAL bot kopyası: mantık V4.1 LIQ ile birebir; soketler PARTIAL botun (…%20-PARTIAL-STOP-LOSS_6M_ddf63bdcdc658aae436ff74c).
+strategy("XMRUSDT.P 6dk LONG ONLY — PATH-LOCK 40D/UW V0.2 LIQ PARTIAL",
+     overlay=true, process_orders_on_close=true,
+     pyramiding=0, initial_capital=500, default_qty_type=strategy.cash, default_qty_value=500,
+     max_bars_back=5000, commission_type=strategy.commission.percent, commission_value=0.04)
+//==============================================================================
+// §§CORE_INPUTS§§
+//==============================================================================
+// INPUTS
+len       = input.int(95, "Lookback Bars", minval=10)
+useHL     = input.bool(true, "Range Source: High/Low (ON) | Close/Close (OFF)")
+showFill  = input.bool(true, "Fill Bands")
+showDebug = input.bool(false, "Show Debug Shapes")
+// RSI Rules
+rsiLen     = input.int(9, "RSI Length", minval=1)
+rsiEntryLv = input.float(30.0, "Entry: RSI CrossUp", step=0.1)
+rsiExitLv  = input.float(65.0, "Exit: RSI CrossDn", step=0.1)
+tpPc       = input.float(2.0, "Min Profit % for EXIT", step=0.1)
+slPc       = input.float(4.6, "Stop Loss %", step=0.1)
+// [REV-TRTIME] TÜRKİYE SAATİ ENTRY BLOCK
+grpTrTime = "TR TIME ENTRY BLOCK"
+trBlockTz = input.string("Europe/Istanbul", "Timezone", group=grpTrTime)
+trBlockStartHour = input.int(17, "Block Start Hour", minval=0, maxval=23, group=grpTrTime)
+trBlockStartMin  = input.int(40, "Block Start Minute", minval=0, maxval=59, group=grpTrTime)
+trBlockEndHour   = input.int(17, "Block End Hour", minval=0, maxval=23, group=grpTrTime)
+trBlockEndMin    = input.int(55, "Block End Minute", minval=0, maxval=59, group=grpTrTime)
+// EXIT-2
+grpExit2 = "EXIT-2 (Top Zone Extra Exit)"
+rsiExit2Lv   = input.float(69.0, "Exit2: RSI CrossDn Level", step=0.1, group=grpExit2)
+rsi1hExitMax = input.float(60.0, "Enable Exit2 if 1H RSI < ", step=0.1, group=grpExit2)
+// UPPER WICK FILTER
+grpUW = "UPPER WICK Filter"
+upperWickMaxPc = input.float(0.28, "BLOCK if Upper Wick % >", step=0.1, group=grpUW)
+// RARE RSI26 Entry
+grpRare = "RARE RSI26 Entry"
+rareRsiLv = input.float(15.0, "RSI CrossUp Level", step=0.1, group=grpRare)
+// CHART ADX Gate
+grpChart = "CHART ADX Gate"
+chartAdxLen    = input.int(14, "Chart ADX Length", minval=1, group=grpChart)
+chartAdxSmooth = input.int(14, "Chart ADX Smoothing", minval=1, group=grpChart)
+chartAdxMin    = input.float(14.0, "BLOCK if Chart ADX < ", step=0.1, group=grpChart)
+// BTC 1H ADX Gate
+grpBtc = "BTC 1H ADX Gate"
+btcSymbol    = input.string("BINANCE:BTCUSDT.P", "BTC Symbol", group=grpBtc)
+btcTf        = input.string("60", "BTC HTF (dakika)", group=grpBtc)
+btcAdxLen    = input.int(14, "BTC ADX Length", minval=1, group=grpBtc)
+btcAdxSmooth = input.int(13, "BTC ADX Smoothing", minval=1, group=grpBtc)
+btcAdxMin    = input.float(12.0, "BLOCK if BTC 1H ADX < ", step=0.1, group=grpBtc)
+// TOTAL2 1H ADX Gate
+grpTotal2 = "TOTAL2 1H ADX Gate"
+total2Symbol    = input.string("CRYPTOCAP:TOTAL2", "TOTAL2 Symbol", group=grpTotal2)
+total2Tf        = input.string("60", "TOTAL2 HTF (dakika)", group=grpTotal2)
+total2AdxLen    = input.int(14, "TOTAL2 ADX Length", minval=1, group=grpTotal2)
+total2AdxSmooth = input.int(13, "TOTAL2 ADX Smoothing", minval=1, group=grpTotal2)
+total2AdxMin    = input.float(9.0, "BLOCK if TOTAL2 1H ADX < ", step=0.1, group=grpTotal2)
+// ETHUSDT.P 2H ADX Gate
+grpEth2h = "ETHUSDT.P 2H ADX Gate"
+ethSymbol    = input.string("BINANCE:ETHUSDT.P", "ETH Symbol", group=grpEth2h)
+eth2hTf      = input.string("120", "ETH 2H TF (dakika)", group=grpEth2h)
+eth2hAdxLen  = input.int(14, "ETH 2H ADX Length", minval=1, group=grpEth2h)
+eth2hAdxSmth = input.int(17, "ETH 2H ADX Smoothing", minval=1, group=grpEth2h)
+eth2hAdxMin  = input.float(13.0, "BLOCK if ETH 2H ADX < ", step=0.1, group=grpEth2h)
+// 2H RSI Gate
+grp2h = "2H RSI Gate"
+rsi2hTf  = input.string("180", "2H TF (dakika)", group=grp2h)
+rsi2hLen = input.int(14, "2H RSI Length", minval=1, group=grp2h)
+rsi2hMin = input.float(31.0, "BLOCK if 2H RSI < ", step=0.1, group=grp2h)
+// 1H RSI 34 CrossDn -> ENTRY BLOCK
+grp1hBlk = "1H RSI ENTRY BLOCK"
+rsi1hTf        = input.string("60", "1H TF (dakika)", group=grp1hBlk)
+rsi1hLen       = input.int(14, "1H RSI Length", minval=1, group=grp1hBlk)
+rsi1hBlockLvl  = input.float(34.0, "TRIGGER if 1H RSI CrossDn <", step=0.1, group=grp1hBlk)
+rsi1hBlockBars = input.int(4, "ENTRY Block Bars (chart bars)", minval=1, group=grp1hBlk)
+// 1H ATR+RSI ENTRY BLOCK
+grpAtrRsiBlk = "1H ATR+RSI ENTRY BLOCK"
+atr1hTf         = input.string("60", "ATR TF (dakika)", group=grpAtrRsiBlk)
+atr1hLen        = input.int(14, "1H ATR Length", minval=1, group=grpAtrRsiBlk)
+atr1hMin        = input.float(7.9, "TRIGGER if 1H ATR >", step=0.1, group=grpAtrRsiBlk)
+rsi1hCrossDnLvl = input.float(55.0, "TRIGGER if 1H RSI CrossDn <", step=0.1, group=grpAtrRsiBlk)
+atrRsiBlockBars = input.int(390, "ENTRY Block Bars (chart bars)", minval=1, group=grpAtrRsiBlk)
+// STUCK LowBand BLOCK
+grpStuck = "STUCK LowBand BLOCK"
+stuckLookbackBars = input.int(48, "Trigger if stuck in 0-0.236 for N bars", minval=5, group=grpStuck)
+stuckBlockBars    = input.int(22, "LONG Block Bars (chart bars)", minval=1, group=grpStuck)
+// TP DIRECT
+grpTPD = "TP DIRECT (2% seen in last N bars + TopBand)"
+tpDirectProfitPc = input.float(2.7, "Trigger if profit % ever >= ", step=0.1, group=grpTPD)
+tpDirectLookback = input.int(30, "Lookback bars (chart bars)", minval=1, group=grpTPD)
+// EARLY LOSS EXIT
+grpEL = "EARLY LOSS EXIT"
+earlyLossBars = input.int(50, "Exit if loss within first N bars", minval=1, group=grpEL)
+earlyLossPc   = input.float(3.0, "Loss % threshold", step=0.1, group=grpEL)
+// MAXDD 22 İŞLEM BLOCK
+grpDD = "MAXDD 22 TRADES BLOCK"
+ddLookbackTrades = input.int(22, "DD Lookback Trades", minval=1, group=grpDD)
+ddThresholdPc    = input.float(5.0, "MaxDD Block Threshold %", step=0.1, group=grpDD)
+totalRsiMin      = input.float(45.0, "Unblock if TOTAL 3H RSI >", step=0.1, group=grpDD)
+ddTimeoutDays    = input.int(5, "Unblock Timeout (Days)", minval=1, group=grpDD)
+// PF BLOCK
+grpPF = "PF BLOCK (Packet)"
+pfPacketTrades = input.int(45, "Packet Size (closed trades)", minval=1, group=grpPF)
+pfThreshold    = input.float(2.5, "Block if PF <", step=0.1, group=grpPF)
+pfBlockDays    = input.int(3, "Block Days", minval=1, group=grpPF)
+// CALMAR BLOCK
+grpCal = "CALMAR BLOCK (Packet)"
+calmarPacketTrades = input.int(5, "Packet Size (closed trades)", minval=1, group=grpCal)
+calmarThreshold    = input.float(1.6, "Block if Calmar <", step=0.1, group=grpCal)
+calmarBlockDays    = input.int(2, "Block Days", minval=1, group=grpCal)
+// SHARPE BLOCK
+grpShp = "SHARPE BLOCK (Packet)"
+sharpePacketTrades = input.int(20, "Packet Size (closed trades)", minval=1, group=grpShp)
+sharpeThreshold    = input.float(0.8, "Block if Sharpe <", step=0.1, group=grpShp)
+sharpeBlockDays    = input.int(2, "Block Days", minval=1, group=grpShp)
+// PATH-LOCKED LONG QUALITY GUARDS — FIXED / READY
+// No ON/OFF switches. These values are the selected stability-first plateau.
+float LQ_GLOBAL_EMA_DIST_MIN_PC = 0.35
+float LQ_GLOBAL_FIB_POS_MAX     = 0.20
+float LQ_UW_DD_TRIGGER_USDT     = 60.0
+float LQ_UW_RANGE_MAX_PC        = 1.80
+float LQ_UW_ADX1H_MAX           = 20.0
+// LINE COLORS
+c0   = input.color(color.new(color.red, 0),     "0.000 Color (ALTFIB)")
+c236 = input.color(color.new(color.orange, 0),  "0.236 Color")
+c382 = input.color(color.new(color.yellow, 0),  "0.382 Color")
+c50  = input.color(color.new(color.aqua, 0),    "0.500 Color")
+c618 = input.color(color.new(color.lime, 0),    "0.618 Color")
+c786 = input.color(color.new(color.blue, 0),    "0.786 Color")
+c1   = input.color(color.new(color.fuchsia, 0), "1.000 Color (TEPEFIB)")
+fillTransp = input.int(88, "Fill Transparency (0-100)", minval=0, maxval=100)
+//==============================================================================
+// BASE SERIES
+//==============================================================================
+msInDay   = 86400000
+barClose  = barstate.isconfirmed
+sym       = syminfo.tickerid
+srcHi     = useHL ? high : close
+srcLo     = useHL ? low  : close
+hi        = ta.highest(srcHi, len)
+lo        = ta.lowest(srcLo, len)
+rng       = hi - lo
+rngSafe   = rng == 0.0 ? na : rng
+hasRange  = not na(rngSafe)
+// [REV-TRTIME] Bar kapanış zamanı Türkiye saatine göre hesaplanır.
+// 6dk grafikte 17:36, 17:42, 17:48, 17:54, 18:00, 18:06 kapanışları bloklanır. 18:12 serbesttir.
+trHourNow     = hour(time_close, trBlockTz)
+trMinuteNow   = minute(time_close, trBlockTz)
+trNowTotalMin = trHourNow * 60 + trMinuteNow
+trStartMin    = trBlockStartHour * 60 + trBlockStartMin
+trEndMin      = trBlockEndHour * 60 + trBlockEndMin
+trTimeBlocked = trNowTotalMin >= trStartMin and trNowTotalMin < trEndMin
+trTimeEntryOk = not trTimeBlocked
+// FIB LEVELS
+lvl0   = lo
+lvl236 = lo + rngSafe * 0.236
+lvl382 = lo + rngSafe * 0.382
+lvl50  = lo + rngSafe * 0.5
+lvl618 = lo + rngSafe * 0.618
+lvl786 = lo + rngSafe * 0.786
+lvl1   = hi
+//==============================================================================
+// VISUALS
+//==============================================================================
+p0   = plot(lvl0,   "0.000", linewidth=2, color=c0)
+p236 = plot(lvl236, "0.236", linewidth=1, color=c236)
+p382 = plot(lvl382, "0.382", linewidth=1, color=c382)
+p50  = plot(lvl50,  "0.500", linewidth=1, color=c50)
+p618 = plot(lvl618, "0.618", linewidth=1, color=c618)
+p786 = plot(lvl786, "0.786", linewidth=1, color=c786)
+p1   = plot(lvl1,   "1.000", linewidth=2, color=c1)
+canFill = showFill and hasRange
+fill(p0,   p236, color=canFill ? color.new(c236, fillTransp) : na, title="Band 0-0.236")
+fill(p236, p382, color=canFill ? color.new(c382, fillTransp) : na, title="Band 0.236-0.382")
+fill(p382, p50,  color=canFill ? color.new(c50,  fillTransp) : na, title="Band 0.382-0.5")
+fill(p50,  p618, color=canFill ? color.new(c618, fillTransp) : na, title="Band 0.5-0.618")
+fill(p618, p786, color=canFill ? color.new(c786, fillTransp) : na, title="Band 0.618-0.786")
+fill(p786, p1,   color=canFill ? color.new(c1,   fillTransp) : na, title="Band 0.786-1.0")
+var label lbTop = na
+var label lbBot = na
+if barstate.islast
+    if na(lbTop)
+        lbTop := label.new(bar_index, lvl1, "TEPEFIB", style=label.style_label_right, textcolor=color.white, color=color.new(c1, 0))
+    else
+        label.set_xy(lbTop, bar_index, lvl1)
+        label.set_text(lbTop, "TEPEFIB")
+        label.set_color(lbTop, color.new(c1, 0))
+    if na(lbBot)
+        lbBot := label.new(bar_index, lvl0, "ALTFIB", style=label.style_label_right, textcolor=color.white, color=color.new(c0, 0))
+    else
+        label.set_xy(lbBot, bar_index, lvl0)
+        label.set_text(lbBot, "ALTFIB")
+        label.set_color(lbBot, color.new(c0, 0))
+//==============================================================================
+// §§SAFE_HELPERS§§
+//==============================================================================
+f_adx(_len, _smooth) =>
+    prevClose = nz(close[1], close)
+    tr1 = high - low
+    tr2 = math.abs(high - prevClose)
+    tr3 = math.abs(low - prevClose)
+    tr  = math.max(tr1, math.max(tr2, tr3))
+    up   = ta.change(high)
+    down = -ta.change(low)
+    plusDM  = na(up) ? na : (up > down and up > 0 ? up : 0)
+    minusDM = na(down) ? na : (down > up and down > 0 ? down : 0)
+    trRma = ta.rma(tr, _len)
+    pDI = fixnan(100 * ta.rma(plusDM, _len) / trRma)
+    mDI = fixnan(100 * ta.rma(minusDM, _len) / trRma)
+    sumDi = pDI + mDI
+    dx = 100 * math.abs(pDI - mDI) / (sumDi == 0 ? 1 : sumDi)
+    ta.rma(dx, _smooth)
+f_atr(_len) =>
+    prevClose = nz(close[1], close)
+    tr1 = high - low
+    tr2 = math.abs(high - prevClose)
+    tr3 = math.abs(low - prevClose)
+    tr  = math.max(tr1, math.max(tr2, tr3))
+    ta.rma(tr, _len)
+f_shadow_qty(_px) =>
+    // TradingView cash sizing on this XMR contract is truncated to 0.0001 qty in the baseline export.
+    rawQty = _px > 0 ? 500.0 / _px : 0.0
+    math.floor(rawQty * 10000.0) / 10000.0
+f_shadow_net_pnl(_entryPx, _exitPx, _qty) =>
+    gross = _qty * (_exitPx - _entryPx)
+    entryComm = _qty * _entryPx * 0.0004
+    exitComm  = _qty * _exitPx  * 0.0004
+    gross - entryComm - exitComm
+f_shadow_ret(_entryPx, _qty, _netPnl) =>
+    notional = _entryPx * _qty
+    notional > 0 ? _netPnl / notional : 0.0
+//==============================================================================
+// §§HTF_GATES§§
+//==============================================================================
+// CHART ADX
+chartAdx   = f_adx(chartAdxLen, chartAdxSmooth)
+chartAdxOk = not na(chartAdx) and chartAdx >= chartAdxMin
+// HTF SERIES (closed-bar anchored)
+btcAdx1h      = request.security(btcSymbol,    btcTf,    f_adx(btcAdxLen,    btcAdxSmooth)[1],    barmerge.gaps_off, barmerge.lookahead_on)
+total2Adx1h   = request.security(total2Symbol, total2Tf, f_adx(total2AdxLen, total2AdxSmooth)[1], barmerge.gaps_off, barmerge.lookahead_on)
+ethAdx2h      = request.security(ethSymbol,    eth2hTf,  f_adx(eth2hAdxLen,  eth2hAdxSmth)[1],    barmerge.gaps_off, barmerge.lookahead_on)
+rsi2hRaw      = request.security(sym, rsi2hTf, ta.rsi(close, rsi2hLen)[1],    barmerge.gaps_off, barmerge.lookahead_on)
+rsi1hRaw      = request.security(sym, rsi1hTf, ta.rsi(close, rsi1hLen)[1],    barmerge.gaps_off, barmerge.lookahead_on)
+atr1hRaw      = request.security(sym, atr1hTf, f_atr(atr1hLen)[1],            barmerge.gaps_off, barmerge.lookahead_on)
+// XMR-only closed 1H ADX for underwater quality mode.
+xmrAdx1hRaw   = request.security(sym, "60", f_adx(14, 14)[1],                 barmerge.gaps_off, barmerge.lookahead_on)
+totalRsi3hRaw = request.security("CRYPTOCAP:TOTAL", "180", ta.rsi(close, 14)[1], barmerge.gaps_off, barmerge.lookahead_on)
+btcAdxOk    = not na(btcAdx1h) and btcAdx1h >= btcAdxMin
+total2AdxOk = not na(total2Adx1h) and total2Adx1h >= total2AdxMin
+ethAdxOk    = not na(ethAdx2h) and ethAdx2h >= eth2hAdxMin
+rsi2hOk     = not na(rsi2hRaw) and rsi2hRaw >= rsi2hMin
+rsi1hExitOk = not na(rsi1hRaw) and rsi1hRaw < rsi1hExitMax
+atr1hOk     = not na(atr1hRaw) and atr1hRaw > atr1hMin
+//==============================================================================
+// [REV-LIQ] LİKİDASYON DÖNÜŞÜ MİNİ SİSTEM — VERİ (5 dk kayıt, zaman damgasıyla, gelecek bilgisi yok)
+//==============================================================================
+float LIQ_OI_DROP_PC = -4.0
+float LIQ_PX_DROP_PC = -3.0
+float LIQ_STOP_PC    = 5.0
+int   LIQ_HOLD_BARS  = int(math.round(12.0 * 3600.0 / timeframe.in_seconds()))
+int   LIQ_LAG_MS     = 5 * 60000
+int   LIQ_COOL_MS    = 24 * 3600000
+liqOiSym = syminfo.prefix + ":" + syminfo.ticker + "_OI"
+[liqOT0, liqO0, liqOH0, liqOT1, liqO1, liqOH1, liqOT2, liqO2, liqOH2] = request.security(liqOiSym, "5", [time_close, close, close[12], time_close[1], close[1], close[13], time_close[2], close[2], close[14]], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
+[liqPT0, liqP0, liqPH0, liqPT1, liqP1, liqPH1, liqPT2, liqP2, liqPH2] = request.security(syminfo.tickerid, "5", [time_close, close, close[12], time_close[1], close[1], close[13], time_close[2], close[2], close[14]], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+f_liqPick(int t0, float v0, float h0, int t1, float v1, float h1, int t2, float v2, float h2, int cut) =>
+    int   tt = na
+    float vv = na
+    float hh = na
+    if not na(t0) and t0 <= cut
+        tt := t0
+        vv := v0
+        hh := h0
+    else if not na(t1) and t1 <= cut
+        tt := t1
+        vv := v1
+        hh := h1
+    else if not na(t2) and t2 <= cut
+        tt := t2
+        vv := v2
+        hh := h2
+    [tt, vv, hh]
+liqCut = time_close - LIQ_LAG_MS
+[liqOT, liqO, liqOH] = f_liqPick(liqOT0, liqO0, liqOH0, liqOT1, liqO1, liqOH1, liqOT2, liqO2, liqOH2, liqCut)
+[liqPT, liqP, liqPH] = f_liqPick(liqPT0, liqP0, liqPH0, liqPT1, liqP1, liqPH1, liqPT2, liqP2, liqPH2, liqCut)
+liqReady   = not na(liqOT) and not na(liqPT) and liqOT == liqPT and liqO > 0 and liqOH > 0 and liqP > 0 and liqPH > 0
+liqOiChgPc = liqReady ? (liqO / liqOH - 1.0) * 100.0 : na
+liqPxChgPc = liqReady ? (liqP / liqPH - 1.0) * 100.0 : na
+var int liqOiFirstT = na
+if na(liqOiFirstT) and liqReady
+    liqOiFirstT := liqOT
+var int liqLastEvT = na
+liqSignal = barClose and liqReady and liqOiChgPc <= LIQ_OI_DROP_PC and liqPxChgPc <= LIQ_PX_DROP_PC
+liqEvent  = liqSignal and (na(liqLastEvT) or liqOT - liqLastEvT >= LIQ_COOL_MS)
+if liqEvent
+    liqLastEvT := liqOT
+//==============================================================================
+// RSI / SHADOW CORE / ZONES
+//==============================================================================
+rsi = ta.rsi(close, rsiLen)
+rsiCrossUp30 = ta.crossover(rsi, rsiEntryLv)
+rsiCrossDn65 = ta.crossunder(rsi, rsiExitLv)
+rsiCrossDn72 = ta.crossunder(rsi, rsiExit2Lv)
+rsiCrossUp26 = ta.crossover(rsi, rareRsiLv)
+rsi1hCrossDn34 = ta.crossunder(rsi1hRaw, rsi1hBlockLvl)
+rsi1hCrossDn50 = ta.crossunder(rsi1hRaw, rsi1hCrossDnLvl)
+inLowBand  = hasRange and close >= lvl0   and close <= lvl236
+inHighBand = hasRange and close >= lvl786 and close <= lvl1
+bodyHi      = math.max(open, close)
+upperW      = high - bodyHi
+upperWickPc = close != 0 ? (upperW / close) * 100.0 : na
+upperWickOk = not na(upperWickPc) and upperWickPc <= upperWickMaxPc
+yr        = year(time)
+wk        = weekofyear(time)
+biWeekIdx = math.floor((wk - 1) / 2) + 1
+periodKey = yr * 100 + biWeekIdx
+//==============================================================================
+// §§SHADOW_CORE§§
+//==============================================================================
+// SHADOW CORE runs the original LONG strategy independently from real orders.
+// Vetoed trades still live and close inside SHADOW, so future entry/packet state
+// stays on the original TradingView path. REAL orders are only a filtered subset.
+var bool  shPosLong            = false
+var float shEntryPx            = na
+var float shQty                = na
+var int   shEntryOrderBar      = na
+var int   shEntryStateBar      = na
+var bool  shPendingMarketClose = false
+var float shPendingExitPx      = na
+var bool  shRealActive         = false
+var int   shClosedCount        = 0
+var float shCumClosedPnl       = 0.0
+var float shPeakClosedPnl      = 0.0
+bool  shNewClosedTrade = false
+float shClosedPnlNow   = na
+float shClosedRetNow   = na
+// A close-based strategy.close() order fills at the prior bar close because
+// process_orders_on_close=true. It becomes visible to strategy state on this bar.
+if barClose and shPendingMarketClose
+    shClosedPnlNow := f_shadow_net_pnl(shEntryPx, shPendingExitPx, shQty)
+    shClosedRetNow := f_shadow_ret(shEntryPx, shQty, shClosedPnlNow)
+    shCumClosedPnl += shClosedPnlNow
+    shPeakClosedPnl := math.max(shPeakClosedPnl, shCumClosedPnl)
+    shClosedCount += 1
+    shNewClosedTrade := true
+    shPosLong := false
+    shEntryPx := na
+    shQty := na
+    shEntryOrderBar := na
+    shEntryStateBar := na
+    shPendingMarketClose := false
+    shPendingExitPx := na
+    shRealActive := false
+// The original SL is first generated one full bar after the entry fill because
+// strategy.position_avg_price is only available after entry. Therefore it can
+// first fill from the second bar after the entry order bar onward.
+shStopPxRaw = shPosLong ? shEntryPx * (1.0 - slPc / 100.0) : na
+// Baseline export proves all 231 SL fills use the sell-stop price floored to mintick.
+shStopPxPre = not na(shStopPxRaw) ? math.floor(shStopPxRaw / syminfo.mintick) * syminfo.mintick : na
+shStopArmed = barClose and shPosLong and not na(shEntryOrderBar) and bar_index >= shEntryOrderBar + 2
+shStopHit   = shStopArmed and not na(shStopPxPre) and low <= shStopPxPre
+if shStopHit
+    shStopFillPx = open < shStopPxPre ? open : shStopPxPre
+    shClosedPnlNow := f_shadow_net_pnl(shEntryPx, shStopFillPx, shQty)
+    shClosedRetNow := f_shadow_ret(shEntryPx, shQty, shClosedPnlNow)
+    shCumClosedPnl += shClosedPnlNow
+    shPeakClosedPnl := math.max(shPeakClosedPnl, shCumClosedPnl)
+    shClosedCount += 1
+    shNewClosedTrade := true
+    shPosLong := false
+    shEntryPx := na
+    shQty := na
+    shEntryOrderBar := na
+    shEntryStateBar := na
+    shRealActive := false
+// Shadow mark-to-market equity for the original DD block.
+shEntryCommission = shPosLong and not na(shEntryPx) and not na(shQty) ? shQty * shEntryPx * 0.0004 : 0.0
+shOpenGrossPnl    = shPosLong and not na(shEntryPx) and not na(shQty) ? shQty * (close - shEntryPx) : 0.0
+shEquity          = 500.0 + shCumClosedPnl + shOpenGrossPnl - shEntryCommission
+//==============================================================================
+// §§BLOCK_ENGINES§§ — ALL BASELINE STATE IS SHADOW-DRIVEN
+//==============================================================================
+// 1H RSI ENTRY BLOCK
+var int rsi1hBlockLeft = 0
+if barClose
+    if rsi1hCrossDn34
+        rsi1hBlockLeft := rsi1hBlockBars
+    else
+        rsi1hBlockLeft := rsi1hBlockLeft > 0 ? (rsi1hBlockLeft - 1) : 0
+rsi1hEntryOk = rsi1hBlockLeft == 0
+// 1H ATR + RSI ENTRY BLOCK
+var int atrRsiBlockLeft = 0
+atrRsiTrigger = barClose and atr1hOk and rsi1hCrossDn50
+if barClose
+    if atrRsiTrigger
+        atrRsiBlockLeft := atrRsiBlockBars
+    else
+        atrRsiBlockLeft := atrRsiBlockLeft > 0 ? (atrRsiBlockLeft - 1) : 0
+atrRsiEntryOk = atrRsiBlockLeft == 0
+// STUCK LOW BAND BLOCK
+dayKey = year(time) * 10000 + month(time) * 100 + dayofmonth(time)
+stuckLowBand48 = hasRange and ta.lowest(inLowBand ? 1 : 0, stuckLookbackBars) == 1
+var int lastStuckDayKey = na
+var int stuckBlockLeft  = 0
+stuckDailyAvailable = na(lastStuckDayKey) or dayKey != lastStuckDayKey
+stuckTrigger = barClose and stuckLowBand48 and stuckDailyAvailable and stuckBlockLeft == 0
+if barClose
+    if stuckTrigger
+        stuckBlockLeft  := stuckBlockBars
+        lastStuckDayKey := dayKey
+    else
+        stuckBlockLeft := stuckBlockLeft > 0 ? (stuckBlockLeft - 1) : 0
+stuckEntryOk = stuckBlockLeft == 0
+// BASELINE DD BLOCK — shadow equity, not filtered real equity.
+var float[] shEqArray = array.new_float(0)
+var float shRollingMaxEq = na
+var bool shIsDdBlocked = false
+var int shDdBlockStartTime = na
+if shNewClosedTrade
+    array.push(shEqArray, shEquity)
+    if na(shRollingMaxEq) or shEquity > shRollingMaxEq
+        shRollingMaxEq := shEquity
+    if array.size(shEqArray) > ddLookbackTrades
+        removedEq = array.shift(shEqArray)
+        if removedEq >= shRollingMaxEq
+            shRollingMaxEq := array.size(shEqArray) > 0 ? array.max(shEqArray) : shEquity
+if na(shRollingMaxEq)
+    shRollingMaxEq := shEquity
+shCurrentRollingDD = shRollingMaxEq > 0 ? ((shRollingMaxEq - shEquity) / shRollingMaxEq * 100.0) : 0.0
+if not shIsDdBlocked and shCurrentRollingDD >= ddThresholdPc
+    shIsDdBlocked := true
+    shDdBlockStartTime := time
+shRsiUnblockTrigger  = not na(totalRsi3hRaw) and totalRsi3hRaw > totalRsiMin
+shTimeUnblockTrigger = not na(shDdBlockStartTime) and (time - shDdBlockStartTime) >= (ddTimeoutDays * msInDay)
+if shIsDdBlocked and (shRsiUnblockTrigger or shTimeUnblockTrigger)
+    shIsDdBlocked := false
+    shDdBlockStartTime := na
+    array.clear(shEqArray)
+    array.push(shEqArray, shEquity)
+    shRollingMaxEq := shEquity
+shDdEntryOk = not shIsDdBlocked
+// PF PACKET BLOCK — shadow closed trades.
+var float[] shPfPacketPnls = array.new_float(0)
+var bool shIsPfBlocked = false
+var int shPfBlockStartTime = na
+var float shLastPfValue = na
+if shNewClosedTrade
+    array.push(shPfPacketPnls, shClosedPnlNow)
+    if array.size(shPfPacketPnls) >= pfPacketTrades
+        shGrossProfitPf = 0.0
+        shGrossLossPf   = 0.0
+        for i = 0 to pfPacketTrades - 1
+            shTradePnlPf = array.get(shPfPacketPnls, i)
+            if shTradePnlPf > 0
+                shGrossProfitPf += shTradePnlPf
+            else if shTradePnlPf < 0
+                shGrossLossPf += math.abs(shTradePnlPf)
+        shLastPfValue := shGrossLossPf > 0 ? (shGrossProfitPf / shGrossLossPf) : (shGrossProfitPf > 0 ? 999999.0 : 0.0)
+        if shLastPfValue < pfThreshold
+            shIsPfBlocked := true
+            shPfBlockStartTime := time
+        array.clear(shPfPacketPnls)
+shPfTimeUnblockTrigger = shIsPfBlocked and not na(shPfBlockStartTime) and (time - shPfBlockStartTime) >= (pfBlockDays * msInDay)
+if shPfTimeUnblockTrigger
+    shIsPfBlocked := false
+    shPfBlockStartTime := na
+    array.clear(shPfPacketPnls)
+shPfEntryOk = not shIsPfBlocked
+// CALMAR PACKET BLOCK — same custom 5-trade packet math as baseline.
+var float[] shCalmarPacketRets = array.new_float(0)
+var bool shIsCalmarBlocked = false
+var int shCalmarBlockStartTime = na
+var float shLastCalmarValue = na
+if shNewClosedTrade
+    array.push(shCalmarPacketRets, shClosedRetNow)
+    if array.size(shCalmarPacketRets) >= calmarPacketTrades
+        shEqCal    = 1.0
+        shPeakCal  = 1.0
+        shMaxDdCal = 0.0
+        for i = 0 to calmarPacketTrades - 1
+            shTradeRetCal = array.get(shCalmarPacketRets, i)
+            shEqCal   := shEqCal * (1.0 + shTradeRetCal)
+            shPeakCal := math.max(shPeakCal, shEqCal)
+            shDdNowCal = shPeakCal > 0 ? ((shPeakCal - shEqCal) / shPeakCal) : 0.0
+            shMaxDdCal := math.max(shMaxDdCal, shDdNowCal)
+        shTotalRetCal = shEqCal - 1.0
+        shLastCalmarValue := shMaxDdCal > 0 ? (shTotalRetCal / shMaxDdCal) : (shTotalRetCal > 0 ? 999999.0 : 0.0)
+        if shLastCalmarValue < calmarThreshold
+            shIsCalmarBlocked := true
+            shCalmarBlockStartTime := time
+        array.clear(shCalmarPacketRets)
+shCalmarTimeUnblockTrigger = shIsCalmarBlocked and not na(shCalmarBlockStartTime) and (time - shCalmarBlockStartTime) >= (calmarBlockDays * msInDay)
+if shCalmarTimeUnblockTrigger
+    shIsCalmarBlocked := false
+    shCalmarBlockStartTime := na
+    array.clear(shCalmarPacketRets)
+shCalmarEntryOk = not shIsCalmarBlocked
+// SHARPE PACKET BLOCK — same custom 20-trade packet math as baseline.
+var float[] shSharpePacketRets = array.new_float(0)
+var bool shIsSharpeBlocked = false
+var int shSharpeBlockStartTime = na
+var float shLastSharpeValue = na
+if shNewClosedTrade
+    array.push(shSharpePacketRets, shClosedRetNow)
+    if array.size(shSharpePacketRets) >= sharpePacketTrades
+        shRetSumShp = 0.0
+        for i = 0 to sharpePacketTrades - 1
+            shRetSumShp += array.get(shSharpePacketRets, i)
+        shMeanRetShp = shRetSumShp / sharpePacketTrades
+        shVarSumShp = 0.0
+        for i = 0 to sharpePacketTrades - 1
+            shRetNowShp = array.get(shSharpePacketRets, i)
+            shDiffShp   = shRetNowShp - shMeanRetShp
+            shVarSumShp += shDiffShp * shDiffShp
+        shStdevShp = math.sqrt(shVarSumShp / sharpePacketTrades)
+        shLastSharpeValue := shStdevShp > 0 ? (shMeanRetShp / shStdevShp) * math.sqrt(sharpePacketTrades) : (shMeanRetShp > 0 ? 999999.0 : 0.0)
+        if shLastSharpeValue < sharpeThreshold
+            shIsSharpeBlocked := true
+            shSharpeBlockStartTime := time
+        array.clear(shSharpePacketRets)
+shSharpeTimeUnblockTrigger = shIsSharpeBlocked and not na(shSharpeBlockStartTime) and (time - shSharpeBlockStartTime) >= (sharpeBlockDays * msInDay)
+if shSharpeTimeUnblockTrigger
+    shIsSharpeBlocked := false
+    shSharpeBlockStartTime := na
+    array.clear(shSharpePacketRets)
+shSharpeEntryOk = not shIsSharpeBlocked
+//==============================================================================
+// SHADOW POSITION EXIT STATE
+//==============================================================================
+shProfitPc = shPosLong and not na(shEntryPx) ? (close - shEntryPx) / shEntryPx * 100.0 : na
+shTpReady  = shPosLong and not na(shProfitPc) and shProfitPc >= tpPc
+shBarsSinceEntry = shPosLong and not na(shEntryStateBar) ? (bar_index - shEntryStateBar) : na
+shEarlyLossExit  = barClose and shPosLong and not na(shBarsSinceEntry) and shBarsSinceEntry <= earlyLossBars and shProfitPc <= -earlyLossPc
+var int shLastRareKey = na
+shRareAvailable = na(shLastRareKey) or periodKey != shLastRareKey
+var int shLastSeenProfitBar = na
+shSeenNow = barClose and shPosLong and not na(shProfitPc) and shProfitPc >= tpDirectProfitPc
+if barClose
+    if shPosLong
+        if shSeenNow
+            shLastSeenProfitBar := bar_index
+    else
+        shLastSeenProfitBar := na
+shSeenWithinWindow = shPosLong and not na(shLastSeenProfitBar) and (bar_index - shLastSeenProfitBar) <= tpDirectLookback
+shTpDirect         = barClose and shPosLong and shSeenWithinWindow and inHighBand
+//==============================================================================
+// §§LONG_QUALITY_GUARDS§§ — FIXED, SHADOW-ANCHORED
+//==============================================================================
+shRealizedDdUsdt = math.max(0.0, shPeakClosedPnl - shCumClosedPnl)
+ema200      = ta.ema(close, 200)
+emaDistPc   = not na(ema200) and ema200 != 0.0 ? ((close - ema200) / ema200) * 100.0 : na
+fibPosition = hasRange ? (close - lo) / rngSafe : na
+range95Pc   = hasRange and close != 0.0 ? (rngSafe / close) * 100.0 : na
+globalLongVeto = not na(emaDistPc) and not na(fibPosition) and emaDistPc > LQ_GLOBAL_EMA_DIST_MIN_PC and fibPosition < LQ_GLOBAL_FIB_POS_MAX
+underwaterMode = shRealizedDdUsdt > LQ_UW_DD_TRIGGER_USDT
+underwaterWeakRange = underwaterMode and not na(range95Pc) and range95Pc < LQ_UW_RANGE_MAX_PC
+underwaterWeakAdx   = underwaterMode and not na(xmrAdx1hRaw) and xmrAdx1hRaw < LQ_UW_ADX1H_MAX
+underwaterLongVeto  = underwaterWeakRange or underwaterWeakAdx
+longQualityVeto     = globalLongVeto or underwaterLongVeto
+//==============================================================================
+// §§ENTRY_EXIT§§ — SHADOW BASELINE DRIVES, REAL EXECUTION IS PATH-LOCKED SUBSET
+//==============================================================================
+// [REV-LIQ] mini sistem durumu: stop dolduysa ya da pozisyon kapandıysa temizle
+var bool  liqActive   = false
+var int   liqEntryBar = na
+var float liqEntryPx  = na
+if liqActive and strategy.position_size == 0 and not na(liqEntryBar) and bar_index > liqEntryBar
+    liqActive := false
+    liqEntryBar := na
+    liqEntryPx := na
+shFlat = not shPosLong
+shWantLong = barClose and shFlat and inLowBand and rsiCrossUp30
+shCanLong  = shWantLong and trTimeEntryOk and btcAdxOk and total2AdxOk and chartAdxOk and rsi2hOk and ethAdxOk and upperWickOk and rsi1hEntryOk and stuckEntryOk and atrRsiEntryOk and shDdEntryOk and shPfEntryOk and shCalmarEntryOk and shSharpeEntryOk
+shWantLongR26 = barClose and shFlat and rsiCrossUp26
+shCanLongR26  = shWantLongR26 and trTimeEntryOk and btcAdxOk and total2AdxOk and chartAdxOk and rsi2hOk and shRareAvailable and ethAdxOk and upperWickOk and rsi1hEntryOk and stuckEntryOk and atrRsiEntryOk and shDdEntryOk and shPfEntryOk and shCalmarEntryOk and shSharpeEntryOk
+shWantExitTopZone = barClose and shTpReady and inHighBand
+shExit1 = shWantExitTopZone and rsiCrossDn65
+shExit2 = shWantExitTopZone and rsiCrossDn72 and rsi1hExitOk
+shCanExitMarket = shEarlyLossExit or shTpDirect or shExit1 or shExit2
+shDoEnter = shCanLong or shCanLongR26
+// Close-based shadow exit. Do not unlock shadow immediately; process_orders_on_close
+// makes the fill visible on the next calculation, preserving the original path.
+if shCanExitMarket
+    if shRealActive and strategy.position_size > 0
+        strategy.close("LONG", comment="EXIT-ALL_BINANCE_XMRUSDT_XMRUSDT.P-6DK-LONG-EXIT-FIB-PATH-LOCK-%20-PARTIAL-STOP-LOSS_6M_ddf63bdcdc658aae436ff74c")
+    shPendingMarketClose := true
+    shPendingExitPx := close
+// Shadow baseline entry always occurs. Real LONG only occurs when this exact
+// baseline opportunity passes the fixed quality veto. If vetoed, the shadow
+// trade still occupies the path until its normal baseline exit.
+if shDoEnter
+    shEntryQtyNow = f_shadow_qty(close)
+    shAllowReal = not longQualityVeto
+    if shAllowReal
+        if liqActive and strategy.position_size > 0
+            // [REV-LIQ] DEVİR: mini sistemin açık pozisyonu ana sisteme geçer; yeni emir yok, mini stop iptal.
+            strategy.cancel("LIQ_SL")
+            liqActive := false
+            liqEntryBar := na
+            liqEntryPx := na
+        else
+            strategy.entry("LONG", strategy.long, comment="ENTER-LONG_BINANCE_XMRUSDT_XMRUSDT.P-6DK-LONG-EXIT-FIB-PATH-LOCK-%20-PARTIAL-STOP-LOSS_6M_ddf63bdcdc658aae436ff74c")
+    shRealActive := shAllowReal
+    shPosLong := true
+    shEntryPx := close
+    shQty := shEntryQtyNow
+    shEntryOrderBar := bar_index
+    shEntryStateBar := bar_index + 1
+    if shCanLongR26
+        shLastRareKey := periodKey
+// Keep the real stop identical to baseline for real subset trades.
+// On the entry order bar strategy.position_size is still flat, so this naturally
+// starts generating the stop one bar later, exactly like the original script.
+realSlPrice = shPosLong and shRealActive ? shEntryPx * (1.0 - slPc / 100.0) : na
+realSlActive = barClose and shPosLong and shRealActive and strategy.position_size > 0 and not na(realSlPrice)
+if realSlActive
+    strategy.exit("SL", "LONG", stop=realSlPrice, comment="EXIT-ALL_BINANCE_XMRUSDT_XMRUSDT.P-6DK-LONG-EXIT-FIB-PATH-LOCK-%20-PARTIAL-STOP-LOSS_6M_ddf63bdcdc658aae436ff74c")
+//==============================================================================
+// [REV-LIQ] LİKİDASYON DÖNÜŞÜ MİNİ SİSTEM — EMİRLER
+//==============================================================================
+liqTimeExit = barClose and liqActive and strategy.position_size > 0 and not na(liqEntryBar) and bar_index - liqEntryBar >= LIQ_HOLD_BARS
+if liqTimeExit
+    strategy.cancel("LIQ_SL")
+    strategy.close("LONG", comment="EXIT-ALL_BINANCE_XMRUSDT_XMRUSDT.P-6DK-LONG-EXIT-FIB-PATH-LOCK-%20-PARTIAL-STOP-LOSS_6M_ddf63bdcdc658aae436ff74c")
+    liqActive := false
+    liqEntryBar := na
+    liqEntryPx := na
+liqCanEnter = barClose and liqEvent and not liqActive and strategy.position_size == 0 and not shDoEnter and not (shPosLong and shRealActive)
+if liqCanEnter
+    strategy.entry("LONG", strategy.long, comment="ENTER-LONG_BINANCE_XMRUSDT_XMRUSDT.P-6DK-LONG-EXIT-FIB-PATH-LOCK-%20-PARTIAL-STOP-LOSS_6M_ddf63bdcdc658aae436ff74c")
+    liqActive := true
+    liqEntryBar := bar_index
+    liqEntryPx := close
+liqStopPx = liqActive and not na(liqEntryPx) ? math.floor(liqEntryPx * (1.0 - LIQ_STOP_PC / 100.0) / syminfo.mintick) * syminfo.mintick : na
+if barClose and liqActive and not na(liqStopPx)
+    strategy.exit("LIQ_SL", "LONG", stop=liqStopPx, comment="EXIT-ALL_BINANCE_XMRUSDT_XMRUSDT.P-6DK-LONG-EXIT-FIB-PATH-LOCK-%20-PARTIAL-STOP-LOSS_6M_ddf63bdcdc658aae436ff74c")
+plot(liqOiChgPc, "LIQ OI 1S %", display=display.data_window)
+plot(liqPxChgPc, "LIQ FIYAT 1S %", display=display.data_window)
+plot(liqReady ? liqOT : na, "LIQ KAYIT ZAMANI MS", display=display.data_window)
+plot(liqEvent ? 1 : 0, "LIQ OLAY", display=display.data_window)
+plot(liqActive ? 1 : 0, "LIQ AKTIF", display=display.data_window)
+// Hidden sync diagnostics in Data Window. If SHADOW is fully synchronized on
+// the baseline test range, these should converge to ~1172 trades / ~3932 USDT.
+plot(shCumClosedPnl, "SHADOW CORE CUM PNL", display=display.data_window)
+plot(shClosedCount, "SHADOW CORE CLOSED TRADES", display=display.data_window)
+plot(shRealizedDdUsdt, "SHADOW CORE REALIZED DD", display=display.data_window)
+//==============================================================================
+// §§DEBUG_LITE§§
+//==============================================================================
+plotshape(showDebug and shCanLong and not longQualityVeto, title="REAL LONG", style=shape.triangleup, location=location.belowbar, size=size.tiny, text="LONG")
+plotshape(showDebug and shCanLongR26 and not longQualityVeto, title="REAL RARE LONG", style=shape.triangleup, location=location.belowbar, size=size.tiny, text="R26")
+plotshape(showDebug and shDoEnter and globalLongVeto, title="PATHLOCK GLOBAL VETO", style=shape.square, location=location.belowbar, size=size.tiny, text="G-V")
+plotshape(showDebug and shDoEnter and underwaterLongVeto, title="PATHLOCK UW VETO", style=shape.square, location=location.belowbar, size=size.tiny, text="UW-V")
+plotshape(showDebug and shExit1, title="SHADOW EXIT-65", style=shape.triangledown, location=location.abovebar, size=size.tiny, text="EX65")
+plotshape(showDebug and shExit2, title="SHADOW EXIT-69", style=shape.triangledown, location=location.abovebar, size=size.tiny, text="EX69")
+plotshape(showDebug and shTpDirect, title="SHADOW TP DIRECT", style=shape.triangledown, location=location.abovebar, size=size.tiny, text="TPD")
+plotshape(showDebug and shEarlyLossExit, title="SHADOW EARLY LOSS", style=shape.xcross, location=location.abovebar, size=size.tiny, text="ELX")
+plotshape(showDebug and shStopHit, title="SHADOW SL", style=shape.xcross, location=location.abovebar, size=size.tiny, text="SL")
+
+//==============================================================================
+// OKUNAKLI DURUM PANELI — yalnizca mevcut durumlari gosterir.
+// Kilitler SHADOW stratejisinin durumudur. Son strateji hesaplamasinda guncellenir.
+//==============================================================================
+f_panel_satir(table t, int satir, string ad, string deger, color zemin) =>
+    table.cell(t, 0, satir, ad, text_color=color.white, bgcolor=zemin, text_size=size.normal, text_halign=text.align_left)
+    table.cell(t, 1, satir, deger, text_color=color.white, bgcolor=zemin, text_size=size.normal, text_halign=text.align_left)
+
+f_kalan_sure(int baslangic, int gun) =>
+    int dk = na(baslangic) ? 0 : int(math.max(0, math.ceil((baslangic + gun * msInDay - time) / 60000.0)))
+    str.tostring(int(math.floor(dk / 60.0))) + "s " + str.tostring(dk % 60) + "dk"
+
+var table durumPaneli = table.new(position.top_right, 2, 26, bgcolor=color.new(color.black, 5), frame_color=color.silver, frame_width=1, border_width=1)
+if barstate.islastconfirmedhistory or (barstate.islast and barstate.isconfirmed)
+    table.clear(durumPaneli, 0, 0, 1, 25)
+    color koyu = color.new(color.black, 5)
+    color kirmizi = color.new(color.red, 25)
+    color sari = color.new(color.orange, 20)
+    int satir = 0
+    f_panel_satir(durumPaneli, satir, "XMR 6DK", "DURUM / BEKLEME NEDENI", color.new(color.navy, 5))
+    satir += 1
+    string pozDurum = strategy.position_size > 0 ? "GERCEK LONG ACIK" : shPosLong and shRealActive ? "LONG EMRI GONDERILDI" : shPosLong ? "GOLGE LONG ACIK" : "POZISYON YOK"
+    f_panel_satir(durumPaneli, satir, "POZISYON", pozDurum, shPosLong ? sari : koyu)
+    satir += 1
+    if shPosLong and not shRealActive
+        f_panel_satir(durumPaneli, satir, "ANA BEKLEME", "Onceki giris veto edildi; golge islem kapanmali", kirmizi)
+        satir += 1
+    if shPendingMarketClose
+        f_panel_satir(durumPaneli, satir, "CIKIS", "GOLGE KAPANIS ISLENIYOR", sari)
+        satir += 1
+    f_panel_satir(durumPaneli, satir, "GIRIS FILTRELERI", "AKTIF OLANLAR ASAGIDA", color.new(color.navy, 20))
+    satir += 1
+    int sayi = 0
+    if trTimeBlocked
+        f_panel_satir(durumPaneli, satir, "SAAT KILIDI", str.tostring(trBlockStartHour, "00") + ":" + str.tostring(trBlockStartMin, "00") + " - " + str.tostring(trBlockEndHour, "00") + ":" + str.tostring(trBlockEndMin, "00") + " " + trBlockTz, kirmizi)
+        satir += 1
+        sayi += 1
+    if not shDdEntryOk
+        f_panel_satir(durumPaneli, satir, "DD KILIDI", "DD esigi >= %" + str.tostring(ddThresholdPc) + " | TOTAL 3H RSI > " + str.tostring(totalRsiMin) + " veya " + f_kalan_sure(shDdBlockStartTime, ddTimeoutDays) + " sonra", kirmizi)
+        satir += 1
+        sayi += 1
+    if not shPfEntryOk
+        f_panel_satir(durumPaneli, satir, "PF KILIDI", "Golge " + str.tostring(pfPacketTrades) + " islem PF < " + str.tostring(pfThreshold) + " | " + f_kalan_sure(shPfBlockStartTime, pfBlockDays) + " kaldi", kirmizi)
+        satir += 1
+        sayi += 1
+    if not shCalmarEntryOk
+        f_panel_satir(durumPaneli, satir, "CALMAR KILIDI", "Golge " + str.tostring(calmarPacketTrades) + " islem Calmar < " + str.tostring(calmarThreshold) + " | " + f_kalan_sure(shCalmarBlockStartTime, calmarBlockDays) + " kaldi", kirmizi)
+        satir += 1
+        sayi += 1
+    if not shSharpeEntryOk
+        f_panel_satir(durumPaneli, satir, "SHARPE KILIDI", "Golge " + str.tostring(sharpePacketTrades) + " islem Sharpe < " + str.tostring(sharpeThreshold) + " | " + f_kalan_sure(shSharpeBlockStartTime, sharpeBlockDays) + " kaldi", kirmizi)
+        satir += 1
+        sayi += 1
+    if not rsi1hEntryOk
+        f_panel_satir(durumPaneli, satir, "1H RSI KILIDI", "RSI " + str.tostring(rsi1hBlockLvl) + " altina kesti | " + str.tostring(rsi1hBlockLeft) + " bar kaldi", kirmizi)
+        satir += 1
+        sayi += 1
+    if not atrRsiEntryOk
+        f_panel_satir(durumPaneli, satir, "ATR + RSI KILIDI", "ATR > " + str.tostring(atr1hMin) + " ve RSI " + str.tostring(rsi1hCrossDnLvl) + " altina kesti | " + str.tostring(atrRsiBlockLeft) + " bar kaldi", kirmizi)
+        satir += 1
+        sayi += 1
+    if not stuckEntryOk
+        f_panel_satir(durumPaneli, satir, "ALT BANT KILIDI", str.tostring(stuckLookbackBars) + " bar alt bantta kaldi | " + str.tostring(stuckBlockLeft) + " bar kaldi", kirmizi)
+        satir += 1
+        sayi += 1
+    if not btcAdxOk
+        f_panel_satir(durumPaneli, satir, "BTC ADX", na(btcAdx1h) ? "VERI YOK" : str.tostring(btcAdx1h, "#.##") + " < " + str.tostring(btcAdxMin), kirmizi)
+        satir += 1
+        sayi += 1
+    if not total2AdxOk
+        f_panel_satir(durumPaneli, satir, "TOTAL2 ADX", na(total2Adx1h) ? "VERI YOK" : str.tostring(total2Adx1h, "#.##") + " < " + str.tostring(total2AdxMin), kirmizi)
+        satir += 1
+        sayi += 1
+    if not ethAdxOk
+        f_panel_satir(durumPaneli, satir, "ETH ADX", na(ethAdx2h) ? "VERI YOK" : str.tostring(ethAdx2h, "#.##") + " < " + str.tostring(eth2hAdxMin), kirmizi)
+        satir += 1
+        sayi += 1
+    if not chartAdxOk
+        f_panel_satir(durumPaneli, satir, "XMR GRAFIK ADX", na(chartAdx) ? "VERI YOK" : str.tostring(chartAdx, "#.##") + " < " + str.tostring(chartAdxMin), kirmizi)
+        satir += 1
+        sayi += 1
+    if not rsi2hOk
+        f_panel_satir(durumPaneli, satir, "XMR HTF RSI", na(rsi2hRaw) ? "VERI YOK" : str.tostring(rsi2hRaw, "#.##") + " < " + str.tostring(rsi2hMin), kirmizi)
+        satir += 1
+        sayi += 1
+    if not upperWickOk
+        f_panel_satir(durumPaneli, satir, "UST IGNE", na(upperWickPc) ? "VERI YOK" : str.tostring(upperWickPc, "#.###") + "% > " + str.tostring(upperWickMaxPc) + "%", kirmizi)
+        satir += 1
+        sayi += 1
+    if globalLongVeto
+        f_panel_satir(durumPaneli, satir, "PATH-LOCK GLOBAL", "EMA uzakligi > %" + str.tostring(LQ_GLOBAL_EMA_DIST_MIN_PC) + " VE FIB konumu < " + str.tostring(LQ_GLOBAL_FIB_POS_MAX), kirmizi)
+        satir += 1
+        sayi += 1
+    if underwaterWeakRange
+        f_panel_satir(durumPaneli, satir, "PATH-LOCK UW", "Golge DD > " + str.tostring(LQ_UW_DD_TRIGGER_USDT) + " USDT VE aralik < %" + str.tostring(LQ_UW_RANGE_MAX_PC), kirmizi)
+        satir += 1
+        sayi += 1
+    if underwaterWeakAdx
+        f_panel_satir(durumPaneli, satir, "PATH-LOCK UW", "Golge DD > " + str.tostring(LQ_UW_DD_TRIGGER_USDT) + " USDT VE XMR 1H ADX < " + str.tostring(LQ_UW_ADX1H_MAX), kirmizi)
+        satir += 1
+        sayi += 1
+    bool golgeKilit = shPosLong and not shRealActive
+    bool nadirKilit = not shPosLong and shWantLongR26 and not shRareAvailable and not shWantLong
+    bool blokVar = golgeKilit or sayi > 0 or nadirKilit
+    string baslik = blokVar ? "EVET | BLOK VAR" : "HAYIR | BLOK YOK"
+    string neden = golgeKilit ? "Gölge işlemin kapanması bekleniyor" : not shDdEntryOk ? "DD kilidi" : not shPfEntryOk ? "PF kilidi" : not shCalmarEntryOk ? "Calmar kilidi" : not shSharpeEntryOk ? "Sharpe kilidi" : not atrRsiEntryOk ? "ATR + RSI kilidi" : not rsi1hEntryOk ? "RSI kilidi" : not stuckEntryOk ? "Alt bant kilidi" : trTimeBlocked ? "Saat kilidi" : not btcAdxOk ? "BTC ADX filtresi" : not total2AdxOk ? "TOTAL2 ADX filtresi" : not ethAdxOk ? "ETH ADX filtresi" : not chartAdxOk ? "XMR ADX filtresi" : not rsi2hOk ? "XMR RSI filtresi" : not upperWickOk ? "Üst fitil filtresi" : globalLongVeto ? "EMA ve FIB vetosu" : underwaterWeakRange ? "Dar aralık vetosu" : underwaterWeakAdx ? "Underwater ADX vetosu" : nadirKilit ? "Nadir giriş hakkı kullanıldı" : shPosLong ? "LONG açık" : "Giriş sinyali bekleniyor"
+    f_panel_satir(durumPaneli, 0, baslik, neden, blokVar ? color.rgb(140, 25, 35) : color.rgb(10, 95, 55))
+    if sayi == 0
+        f_panel_satir(durumPaneli, satir, "FILTRE DURUMU", "AKTIF BLOK YOK", color.new(color.green, 35))
+        satir += 1
+    if not shPosLong
+        f_panel_satir(durumPaneli, satir, "NORMAL GIRIS", not hasRange ? "BANT VERISI BEKLENIYOR" : inLowBand ? "ALT BANTTA: RSI YUKARI KESISIMI BEKLENIYOR" : "ALT BANT VE RSI KESISIMI BEKLENIYOR", koyu)
+        satir += 1
+        f_panel_satir(durumPaneli, satir, "NADIR GIRIS", shRareAvailable ? "RSI YUKARI KESISIMI BEKLENIYOR" : "BU DONEM HAKKI KULLANILDI", koyu)
+        satir += 1
+    else
+        f_panel_satir(durumPaneli, satir, "TAKIP", shRealActive ? "LONG CIKIS KOSULLARI TAKIP EDILIYOR" : "YENI GIRIS ICIN GOLGE CIKISI BEKLENIYOR", koyu)
+        satir += 1
+    // [REV-LIQ] mini sistem tanı satırları
+    string liqDurum = liqActive ? "ACIK | " + str.tostring(bar_index - liqEntryBar) + "/" + str.tostring(LIQ_HOLD_BARS) + " bar" : "BEKLIYOR | OI 1s " + (na(liqOiChgPc) ? "VERI YOK" : str.tostring(liqOiChgPc, "#.##") + "%") + " | fiyat 1s " + (na(liqPxChgPc) ? "-" : str.tostring(liqPxChgPc, "#.##") + "%")
+    f_panel_satir(durumPaneli, satir, "MINI LIKIDASYON", liqDurum, liqActive ? sari : koyu)
+    satir += 1
+    f_panel_satir(durumPaneli, satir, "OI VERI ILK", na(liqOiFirstT) ? "YOK" : str.format_time(liqOiFirstT, "yyyy-MM-dd HH:mm", "UTC"), koyu)
+
