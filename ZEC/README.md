@@ -1,7 +1,7 @@
 # CYBORG | ZEC 2M — sistem organizasyonu
 
 `BINANCE:ZECUSDT.P` · 2 dk · iki yön · sabit 500 $ birim (initial_capital 500, strategy.cash 500, komisyon %0,04, kayma 1 tick, process_orders_on_close, pyramiding 0, margin 0).
-Durum: **Faz 0 — kurulum** (2026-11-24). Henüz Pine / TV export yok; tüm sayılar araştırma motoru etiketli olacak.
+Durum: **V0.1 Pine hazır, TV export bekliyor** (2026-11-24). Sayılar araştırma motoru (`engine/z01.py`), TV'de doğrulanmadı.
 
 ## 1. Hedef
 
@@ -100,4 +100,4 @@ Net ≥ baz × 1,06 **ve** MaxDD, Calmar, DD P95/P98/P99, SC4 kötüleşmez · �
 
 | Sürüm | Kaynak | Net $ | İşlem | PF | MaxDD (MTM) | SC4 | Not |
 |---|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — | Faz 0 |
+| V0.1 | motor | 1.367 (%273) | 1.037 | 1,30 | 291 (P99 236) | 0,011 | SPIKE FADE çift yön; long +1.549 / short −182; IS 915 / OOS 452; `pine/ZEC_2M_V0.1.pine` |

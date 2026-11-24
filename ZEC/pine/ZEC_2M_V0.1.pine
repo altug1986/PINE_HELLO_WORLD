@@ -1,0 +1,105 @@
+//@version=6
+// ════════════════════════════════════════════════════════════════════════════════════════════
+//  CYBORG | ZEC 2M ÇİFT YÖN V0.1  —  BINANCE:ZECUSDT.P · 2 dk · long + short · sabit 500 $
+//  Araştırma motoru (GitHub ZEC/engine/z01.py run2(20,10,4,99,120), 2021-01 → 2026-11-23):
+//    net 1.367 $ (%273) · 1.037 işlem · PF 1,30 · MTM 30 dk MaxDD 291 · DD P95/P98/P99 180/221/236
+//    long +1.549 / short −182 · IS 915 / OOS 452 · monkey p < 0,005 · komşu 27/27 pozitif
+//  TV'DE DOĞRULANMADI — Strategy Tester export'u ile eşleştirilecek.
+// ════════════════════════════════════════════════════════════════════════════════════════════
+//  REV LOG
+//  V0.1 (2026-11-24) İlk sürüm. Çekirdek = SPIKE FADE (olay çalışması: 20 bar ≥10 ATR hareket,
+//        2 sa ileri getiri IS/OOS pozitif). Kırılım takibi 600 varyantta kaybettirdi → çekirdeğe alınmadı.
+//        Veri katmanı (OI 5 dk, BTC, XMR) yalnız panelde; kurala girmedi (V0.2+ tek tek test edilecek).
+// ════════════════════════════════════════════════════════════════════════════════════════════
+//  NAV
+//  §§1 STRATEJİ ŞABLONU      §§2 GİRDİLER          §§3 VERİ KATMANI
+//  §§4 ÖZELLİKLER            §§5 MOTORLAR          §§6 SAHİP / DURUM MAKİNESİ
+//  §§7 EMİRLER (WUNDER)      §§8 PANEL
+// ════════════════════════════════════════════════════════════════════════════════════════════
+
+// §§1 STRATEJİ ŞABLONU ────────────────────────────────────────────────────────────────────────
+strategy("CYBORG | ZEC 2M ÇİFT YÖN V0.1", shorttitle="ZEC 2M V0.1", overlay=true,
+     process_orders_on_close=true, pyramiding=0, initial_capital=500,
+     default_qty_type=strategy.cash, default_qty_value=500,
+     commission_type=strategy.commission.percent, commission_value=0.04, slippage=1,
+     margin_long=0, margin_short=0, max_bars_back=2000,
+     calc_on_every_tick=false, calc_on_order_fills=false)
+
+// §§2 GİRDİLER ─────────────────────────────────────────────────────────────────────────────────
+grp1 = "1 · ÇEKİRDEK (SPIKE FADE)"
+lenZ   = input.int(20,     "Hareket penceresi (bar)",        minval=2,   group=grp1)
+kZ     = input.float(10.0, "Eşik (ATR katı)",                minval=1.0, step=0.5, group=grp1)
+lenATR = input.int(30,     "ATR uzunluğu (RMA)",             minval=2,   group=grp1)
+grp2 = "2 · ÇIKIŞ"
+slATR  = input.float(4.0,  "Zarar kes (giriş ATR katı)",     minval=0.5, step=0.5, group=grp2)
+tBars  = input.int(120,    "Zaman çıkışı (bar)",             minval=1,   group=grp2)
+
+// §§3 VERİ KATMANI (V0.1: yalnız panel) ────────────────────────────────────────────────────────
+// Dış seriler kapanmış değerle ([1] + lookahead_on), tekrar boyama yok. Geçersiz sembolde na döner.
+oiZ  = request.security("BINANCE:ZECUSDT.P_OI", "5", close[1], lookahead=barmerge.lookahead_on, ignore_invalid_symbol=true)
+btcC = request.security("BINANCE:BTCUSDT.P", timeframe.period, close, ignore_invalid_symbol=true)
+xmrC = request.security("BINANCE:XMRUSDT.P", timeframe.period, close, ignore_invalid_symbol=true)
+
+// §§4 ÖZELLİKLER ───────────────────────────────────────────────────────────────────────────────
+atrV  = ta.rma(ta.tr(true), lenATR)
+moveZ = (close - close[lenZ]) / atrV                      // pencere hareketi, ATR biriminde
+oiChg = (oiZ / oiZ[30] - 1) * 100                         // ~1 sa OI değişimi % (panel)
+btcChg = (btcC / btcC[lenZ] - 1) * 100
+xmrChg = (xmrC / xmrC[lenZ] - 1) * 100
+
+// §§5 MOTORLAR ─────────────────────────────────────────────────────────────────────────────────
+// M1 DİP AV  : sert düşüş (≤ −kZ ATR) → long  (tarih: +1.549 $, IS ve OOS pozitif)
+// M2 TEPE AV : sert yükseliş (≥ +kZ ATR) → short (tarih: −182 $; edge araştırması EDGE_LOG'da)
+m1Long  = barstate.isconfirmed and not na(moveZ) and moveZ <= -kZ
+m2Short = barstate.isconfirmed and not na(moveZ) and moveZ >=  kZ
+want = m1Long ? 1 : m2Short ? -1 : 0
+
+// §§6 SAHİP / DURUM MAKİNESİ ───────────────────────────────────────────────────────────────────
+var int   entryBar = na
+var float stopLvl  = na
+var int   owner    = 0                                     // 0 boş · 1 DİP AV · 2 TEPE AV
+pos = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+timeOut = pos != 0 and bar_index - entryBar >= tBars
+flip    = pos != 0 and want != 0 and want != pos
+doExit  = timeOut or flip
+posAfter = doExit ? 0 : pos
+blockDir = timeOut and want == pos ? pos : 0               // zaman çıkışı barında aynı yöne yeniden giriş yok
+doEnter  = posAfter == 0 and want != 0 and want != blockDir and not na(atrV)
+
+// §§7 EMİRLER (WUNDER soketleri — BOTKODU'nu Wunder bot koduyla değiştir) ───────────────────────
+if doExit
+    strategy.close_all(comment="EXIT-ALL_BINANCE_ZECUSDT_ZEC-2M-CYBORG_2M_BOTKODU")
+    owner := 0
+if doEnter and want == 1
+    stopLvl  := close + syminfo.mintick - slATR * atrV
+    entryBar := bar_index
+    owner    := 1
+    strategy.entry("L", strategy.long, comment="ENTER-LONG_BINANCE_ZECUSDT_ZEC-2M-CYBORG_2M_BOTKODU")
+    strategy.exit("LX", from_entry="L", stop=stopLvl, comment="EXIT-ALL_BINANCE_ZECUSDT_ZEC-2M-CYBORG_2M_BOTKODU")
+if doEnter and want == -1
+    stopLvl  := close - syminfo.mintick + slATR * atrV
+    entryBar := bar_index
+    owner    := 2
+    strategy.entry("S", strategy.short, comment="ENTER-SHORT_BINANCE_ZECUSDT_ZEC-2M-CYBORG_2M_BOTKODU")
+    strategy.exit("SX", from_entry="S", stop=stopLvl, comment="EXIT-ALL_BINANCE_ZECUSDT_ZEC-2M-CYBORG_2M_BOTKODU")
+
+// §§8 PANEL ────────────────────────────────────────────────────────────────────────────────────
+plot(strategy.position_size != 0 ? stopLvl : na, "Zarar kes", color.new(color.red, 0), 1, plot.style_linebr)
+plotshape(m1Long,  "DİP AV",  shape.triangleup,   location.belowbar, color.new(color.teal, 0),   size=size.tiny)
+plotshape(m2Short, "TEPE AV", shape.triangledown, location.abovebar, color.new(color.orange, 0), size=size.tiny)
+var table tb = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black, 20), border_width=1)
+if barstate.islast
+    table.cell(tb, 0, 0, "ZEC 2M V0.1", text_color=color.white)
+    table.cell(tb, 1, 0, pos == 1 ? "LONG" : pos == -1 ? "SHORT" : "BOŞ", text_color=pos == 1 ? color.teal : pos == -1 ? color.orange : color.gray)
+    table.cell(tb, 0, 1, "Hareket (ATR)", text_color=color.gray)
+    table.cell(tb, 1, 1, str.tostring(moveZ, "#.0"), text_color=color.white)
+    table.cell(tb, 0, 2, "ATR %", text_color=color.gray)
+    table.cell(tb, 1, 2, str.tostring(atrV / close * 100, "#.00"), text_color=color.white)
+    table.cell(tb, 0, 3, "OI Δ1s %", text_color=color.gray)
+    table.cell(tb, 1, 3, na(oiChg) ? "yok" : str.tostring(oiChg, "#.00"), text_color=color.white)
+    table.cell(tb, 0, 4, "BTC Δ %", text_color=color.gray)
+    table.cell(tb, 1, 4, str.tostring(btcChg, "#.00"), text_color=color.white)
+    table.cell(tb, 0, 5, "XMR Δ %", text_color=color.gray)
+    table.cell(tb, 1, 5, str.tostring(xmrChg, "#.00"), text_color=color.white)
+    table.cell(tb, 0, 6, "Motor", text_color=color.gray)
+    table.cell(tb, 1, 6, owner == 1 ? "DİP AV" : owner == 2 ? "TEPE AV" : "-", text_color=color.white)
