@@ -1,0 +1,64 @@
+name: zec-live-patch
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/zec_live_patch.yml']
+permissions:
+  contents: write
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: fapi canlı yama (2026-11-24 → şimdi)
+        run: |
+          mkdir -p data
+          python3 - <<'PY'
+          import json, urllib.request, time, csv, gzip
+          H=['https://fapi.binance.com','https://fapi1.binance.com','https://fapi2.binance.com']
+          def get(path):
+            for h in H:
+              try: return json.loads(urllib.request.urlopen(h+path,timeout=30).read())
+              except Exception as e: err=f'{h} {e}'
+            raise RuntimeError(err)
+          t0=1795478400000  # 2026-11-24 00:00 UTC
+          now=int(time.time()*1000)//60000*60000-60000
+          log=[]
+          def kl(ep,sym,extra=''):
+            out=[]; s=t0
+            while s<now:
+              r=get(f'/fapi/v1/{ep}?{extra}symbol={sym}&interval=1m&startTime={s}&limit=1500') if ep!='indexPriceKlines' else get(f'/fapi/v1/{ep}?pair={sym}&interval=1m&startTime={s}&limit=1500')
+              if not r: break
+              out+=[x for x in r if x[0]<=now]; s=r[-1][0]+60000
+            return out
+          rows={}
+          try:
+            for sym in ['ZECUSDT','BTCUSDT','XMRUSDT']:
+              k=kl('klines',sym); log.append(f'{sym} klines {len(k)}')
+              for x in k:
+                d=rows.setdefault(x[0],{}); p=sym[:3].lower()
+                d.update({f'{p}_open':x[1],f'{p}_high':x[2],f'{p}_low':x[3],f'{p}_close':x[4],f'{p}_volume':x[5]} if p=='zec' else {f'{p}_close':x[4]})
+                if p=='zec': d.update({'quote_volume':x[7],'trades':x[8],'taker_buy_base':x[9],'taker_buy_quote':x[10]})
+            for x in kl('indexPriceKlines','ZECUSDT'): rows.setdefault(x[0],{})['index_close']=x[4]
+            for x in kl('premiumIndexKlines','ZECUSDT'): rows.setdefault(x[0],{})['premium_close']=x[4]
+            cols=sorted({c for v in rows.values() for c in v})
+            with gzip.open('data/ZECUSDT_LIVE_PATCH_1m_20261124.csv.gz','wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time']+cols)
+              for t in sorted(rows): w.writerow([t]+[rows[t].get(c,'') for c in cols])
+            m=[]
+            for ep,key in [('openHist','openInterestHist'),('topPos','topLongShortPositionRatio'),('topAcc','topLongShortAccountRatio'),('glb','globalLongShortAccountRatio'),('taker','takerlongshortRatio')]:
+              r=get(f'/futures/data/{key}?symbol=ZECUSDT&period=5m&startTime={t0-86400000}&limit=500'); m.append((ep,r)); log.append(f'{key} {len(r)}')
+            json.dump({k:v for k,v in m},open('data/ZECUSDT_LIVE_PATCH_METRICS_5m_20261124.json','w'))
+            log.append(f'kline satır {len(rows)}, son {time.strftime("%Y-%m-%d %H:%M",time.gmtime(max(rows)/1000))} UTC')
+          except Exception as e:
+            log.append(f'HATA {e}')
+          open('data/ZECUSDT_LIVE_PATCH_LOG.txt','w').write('\n'.join(log)+'\n'); print('\n'.join(log))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/ZECUSDT_LIVE_PATCH_* || true
+          git commit -m "data: ZECUSDT canlı yama 2026-11-24 (fapi 1m + metrics 5m)" || echo nothing
+          for i in 1 2 3; do git pull --rebase origin main && git push && break; sleep 15; done
