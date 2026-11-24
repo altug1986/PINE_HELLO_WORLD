@@ -166,3 +166,40 @@ def sim4(o, h, l, c, atr, eL, eS, D, tL, tS, ts, tH, tD):
                 best = min(best, c[i]); stop = min(stop, best + dist)
         eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
     return eq, T[:nt]
+
+
+@njit(cache=True)
+def sim5(o, h, l, c, atr, aL, aS, ats, atH, bL, bS, bts, btH):
+    """İki motor, öncelik A > B. A sinyali: aynı yönde B pozisyonunu devralır (giriş fiyatı korunur, A zarar kesi ve süresi
+    devralma anından), ters yönde çevirir. B yalnız boşken ya da kendi pozisyonunu çevirirken işlem açar. Her motorun
+    kendi zarar kesi (ATR katı, giriş ATR'si) ve süre sınırı (bar) vardır."""
+    n = len(c); eq = np.zeros(n); real = 0.0; pos = 0; own = 0; ep = 0.0; q = 0.0; stop = 0.0; ei = 0; ti = 0; mae = 0.0
+    T = np.zeros((n // 2 + 10, 8)); nt = 0
+    for i in range(1, n):
+        if pos != 0:
+            if (pos == 1 and l[i] <= stop) or (pos == -1 and h[i] >= stop):
+                xp = (min(o[i], stop) - TICK) if pos == 1 else (max(o[i], stop) + TICK)
+                pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+                mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+                T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+                pos = 0; own = 0
+            else:
+                mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+        wA = 1 if aL[i] else (-1 if aS[i] else 0); wB = 1 if bL[i] else (-1 if bS[i] else 0)
+        tout = pos != 0 and ((own == 1 and i - ti >= atH) or (own == 2 and i - ti >= btH))
+        ex = pos != 0 and ((wA != 0 and wA != pos) or (own == 2 and wB != 0 and wB != pos) or tout)
+        blk = pos if (tout and (wA == pos or wB == pos)) else 0
+        if ex:
+            xp = c[i] - TICK * pos; pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+            T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+            pos = 0; own = 0
+        if pos != 0 and own == 2 and wA == pos:            # A devralır
+            own = 1; ti = i; s2 = c[i] - pos * ats * atr[i]
+            stop = max(stop, s2) if pos == 1 else min(stop, s2)
+        if pos == 0 and not np.isnan(atr[i]):
+            if wA != 0 and wA != blk:
+                pos = wA; own = 1; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; ti = i; mae = 0.0; stop = ep - pos * ats * atr[i]
+            elif wB != 0 and wB != blk:
+                pos = wB; own = 2; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; ti = i; mae = 0.0; stop = ep - pos * bts * atr[i]
+        eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
+    return eq, T[:nt]
