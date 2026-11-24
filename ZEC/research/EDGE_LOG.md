@@ -16,7 +16,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 | 11-24 | Seçim: beklenen değer ağırlığı | ağırlık = IS ileri getiri bps; skor ≥ 8–40 bps | 3.800–9.000 | iki yarıda pozitif 0/126 | — | — | — | — | ✗ | ELENDİ | OOS kalibrasyon U şekli: skor uçları iki yönde de +17,8 bps → büyüklük var, yön yok |
 | 11-24 | Seçim: meta (GBM/lojistik) | ham işlemlerden IS'te öğren, OOS üst %10–30 | 1.100–6.700 OOS | OOS PF 0,74–0,89 (balina/emir defteri dahil) | — | — | — | — | ✗ | ELENDİ | üretici kötü olunca seçim kurtarmıyor |
 | 11-24 | Seyrek aşırı oy | RSI, EMA240 sapma, spike, BB, OI tasfiye, basis + 4 s trend; ≥3 oy, 480 bar, SL 12 ATR | 3.831 | long IS +1.502 / OOS +1.466 · short IS −333 / OOS −1.145 | %46 (long) | 5,5 % (maks 34,9 ⚠) | — | — | ✓ long | BEKLE | long oylama: net 2.778, MaxDD 442 (V0.1: 291 ✗), SC4 0,009 (V0.1: 0,011 ✗) → SL/çıkış düzeltilmeli |
+| 11-24 | Trend çekirdek (HTF) | 4 sa / 1 g Donchian veya EMA kesişimi giriş; çıkış kanal ya da ATR izi; sabit 500 giriş, kâr koşar | 14–359 | en iyi net 5.940–7.114 ama ilk 3 işlem kârın %68–100'ü, MaxDD 2.700–3.600 | — | — | — | — | ~ | BEKLE | 2025 mega trendine bağımlı; 2021–23 yarısı ≈ 0 |
+| 11-24 | Trend + taktik (sahip makinesi) | 4 sa Donchian(10) + 4×ATR4s iz; trend boşken 6 aşırı oy ≥3 long; taktik pozisyonu trend devralır | 825 | IS +1.108 / OOS +3.341; yıllar 1.120 / −48 / 5 / 1.042 / 1.255 / 1.075 | %30 | 7,3 % (maks 26,6 ⚠) | — | — | ✓ | KAZANAN (V0.2) | MaxDD 674 (V0.1 291 ✗ kırmızı çizgi); hedef %3000'e 3,4× uzak |
 
 ## Dersler (tek satır)
+- Sabit 500 $ girişte kârı büyüten kaldıraç trendi koşturmak: giriş başına getiri sınırsız, çıkış-tekrar giriş bunu sıfırlar. Taktik dip alımı trend çekirdeğine erken giriş fiyatı sağlıyor (trend kârı 2.475 → 4.246).
 - Bilgi tablosu (h60 IS/OOS bps): spike +16,8/+6,0 · basis +10,9/+8,0 · global L/S (h240) +18/+18 · 4 s trend (h240) +3/+13 · 2 dk trend ≈0/negatif · taker akışı ve BTC ters yönde ~2 bps (< maliyet 8,3).
 - ZEC 2 dk'da fiyat yalnızca aşırı hareketin dönüşünde kazandırıyor; kırılım/itki takibi maliyetin altında. Long tarafı (dump fade) sağlam, short tarafı (pump fade) 2021–26 boğasında kaybettiriyor.

@@ -1,0 +1,127 @@
+//@version=6
+// ════════════════════════════════════════════════════════════════════════════════════════════
+//  CYBORG | ZEC 2M TREND + OY V0.2  —  BINANCE:ZECUSDT.P · 2 dk · sabit 500 $ giriş
+//  Araştırma motoru (GitHub ZEC/engine/z02.py sim4, 2021-01 → 2026-11-23):
+//    net 4.448 $ (%890) · 825 işlem · PF 1,56 · MTM 30 dk MaxDD 674 · DD P95/P98/P99 548/604/620
+//    Calmar 1,12 · Sharpe 1,27 · Sortino 1,92 · IS 1.108 / OOS 3.341 · komşu 108/108 pozitif (medyan 2.986)
+//  TV'DE DOĞRULANMADI — Strategy Tester export'u ile eşleştirilecek.
+// ════════════════════════════════════════════════════════════════════════════════════════════
+//  REV LOG
+//  V0.1 (2026-11-24) SPIKE FADE çift yön: net 1.367, MaxDD 291.
+//  V0.2 (2026-11-24) [REV-02] Yeni mimari (sahip durum makinesi):
+//        TREND çekirdek: 4 sa Donchian(10) üstü 2 dk kapanış → long; iz = en iyi kapanış − 4 × ATR(4 sa); süre sınırı yok.
+//        TAKTİK katman (trend boşken): 6 aşırı oy toplamı ≥ 3 → long; SL 4 × ATR(2 dk); 480 bar zaman çıkışı.
+//        Trend sinyali açık taktik long'u devralır (giriş fiyatı korunur).
+//        Short motoru yok: 2021–26 boyunca 4 seçim yönteminde short iki yarıda birden kârlı çıkmadı (EDGE_LOG).
+// ════════════════════════════════════════════════════════════════════════════════════════════
+//  NAV
+//  §§1 ŞABLON   §§2 GİRDİLER   §§3 VERİ (HTF + OI)   §§4 OYLAR   §§5 TREND ÇEKİRDEK
+//  §§6 SAHİP DURUM MAKİNESİ    §§7 EMİRLER (WUNDER)  §§8 PANEL
+// ════════════════════════════════════════════════════════════════════════════════════════════
+
+// §§1 ŞABLON ───────────────────────────────────────────────────────────────────────────────────
+strategy("CYBORG | ZEC 2M TREND + OY V0.2", shorttitle="ZEC 2M V0.2", overlay=true,
+     process_orders_on_close=true, pyramiding=0, initial_capital=500,
+     default_qty_type=strategy.cash, default_qty_value=500,
+     commission_type=strategy.commission.percent, commission_value=0.04, slippage=1,
+     margin_long=0, margin_short=0, max_bars_back=2000,
+     calc_on_every_tick=false, calc_on_order_fills=false)
+
+// §§2 GİRDİLER ─────────────────────────────────────────────────────────────────────────────────
+grp1 = "1 · TREND ÇEKİRDEK (4 sa)"
+donN   = input.int(10,     "Donchian (4 sa bar)",           minval=2,   group=grp1)
+trK    = input.float(4.0,  "İz (ATR 4 sa katı)",            minval=0.5, step=0.5, group=grp1)
+grp2 = "2 · TAKTİK OY (2 dk)"
+voteT  = input.int(3,      "Oy eşiği",                      minval=1,   group=grp2)
+tSL    = input.float(4.0,  "Zarar kes (ATR 2 dk katı)",     minval=0.5, step=0.5, group=grp2)
+tBars  = input.int(480,    "Zaman çıkışı (bar)",            minval=1,   group=grp2)
+grp3 = "3 · OY EŞİKLERİ"
+rsiLo  = input.float(25.0, "RSI alt",                       group=grp3)
+rsiHi  = input.float(75.0, "RSI üst",                       group=grp3)
+zemaK  = input.float(8.0,  "EMA240 sapma (ATR)",            group=grp3)
+spikeK = input.float(10.0, "Spike (20 bar, ATR)",           group=grp3)
+bbK    = input.float(2.5,  "Bollinger (120) σ",             group=grp3)
+oiLiqP = input.float(2.0,  "OI tasfiyesi 1 sa (%)",         group=grp3)
+
+// §§3 VERİ (HTF + OI) — kapanmış HTF barı: [1] + lookahead_on (tekrar boyama yok) ─────────────────
+hh4   = request.security(syminfo.tickerid, "240", ta.highest(high, donN)[1], lookahead=barmerge.lookahead_on)
+atr4  = request.security(syminfo.tickerid, "240", ta.rma(ta.tr(true), 14)[1], lookahead=barmerge.lookahead_on)
+tr4h  = request.security(syminfo.tickerid, "240", (close - ta.ema(close, 50))[1], lookahead=barmerge.lookahead_on)
+oiZ   = request.security("BINANCE:ZECUSDT.P_OI", "5", close[2], lookahead=barmerge.lookahead_on, ignore_invalid_symbol=true)
+
+// §§4 OYLAR (her biri +1 / 0 / −1; long katmanı yalnız toplamın ≥ eşik olmasına bakar) ─────────────
+atr2  = ta.rma(ta.tr(true), 30)
+rsiV  = ta.rsi(close, 14)
+vRsi  = rsiV < rsiLo ? 1 : rsiV > rsiHi ? -1 : 0
+zE    = (close - ta.ema(close, 240)) / atr2
+vZema = zE <= -zemaK ? 1 : zE >= zemaK ? -1 : 0
+m20   = (close - close[20]) / atr2
+vSpk  = ta.highest(m20 <= -spikeK ? 1 : 0, 60) - ta.highest(m20 >= spikeK ? 1 : 0, 60)
+bbM   = ta.sma(close, 120)
+bbS   = ta.stdev(close, 120)
+vBb   = close < bbM - bbK * bbS ? 1 : close > bbM + bbK * bbS ? -1 : 0
+dOi   = (oiZ / oiZ[30] - 1) * 100
+dPx   = (close / close[30] - 1) * 100
+vOi   = na(dOi) ? 0 : dOi < -oiLiqP and dPx < 0 ? 1 : dOi < -oiLiqP and dPx > 0 ? -1 : 0
+v4h   = na(tr4h) ? 0 : tr4h > 0 ? 1 : tr4h < 0 ? -1 : 0
+score = nz(vRsi) + nz(vZema) + nz(vSpk) + nz(vBb) + vOi + v4h
+
+// §§5 TREND ÇEKİRDEK ───────────────────────────────────────────────────────────────────────────
+trendL = barstate.isconfirmed and not na(hh4) and close > hh4
+trDist = trK * atr4
+tacL   = barstate.isconfirmed and score >= voteT
+
+// §§6 SAHİP DURUM MAKİNESİ (0 boş · 1 TREND · 2 TAKTİK) ───────────────────────────────────────
+var int   owner    = 0
+var int   entryBar = na
+var float stopLvl  = na
+var float best     = na
+var float entAtr   = na
+pos = strategy.position_size > 0 ? 1 : 0
+if pos == 0
+    owner := 0
+tacOut  = pos == 1 and owner == 2 and bar_index - entryBar >= tBars
+blkTac  = tacOut and tacL                                          // zaman çıkışı barında aynı yöne yeniden taktik giriş yok
+// [REV-02] trend devralma: açık taktik long + trend sinyali → sahip TREND, iz trend mesafesiyle
+if pos == 1 and owner == 2 and trendL and not tacOut
+    owner   := 1
+    stopLvl := math.max(stopLvl, best - trDist)
+posAfter  = tacOut ? 0 : pos
+doTrend   = posAfter == 0 and trendL and not tacOut and not na(trDist)   // zaman çıkışı barında yeniden giriş yok
+doTac     = posAfter == 0 and not doTrend and tacL and not blkTac and not na(atr2)
+
+// §§7 EMİRLER (WUNDER soketleri — BOTKODU'nu Wunder bot koduyla değiştir) ───────────────────────
+if tacOut
+    strategy.close_all(comment="EXIT-ALL_BINANCE_ZECUSDT_ZEC-2M-CYBORG_2M_BOTKODU")
+    owner := 0
+if doTrend or doTac
+    owner    := doTrend ? 1 : 2
+    entryBar := bar_index
+    best     := close
+    entAtr   := atr2
+    stopLvl  := close + syminfo.mintick - (doTrend ? trDist : tSL * atr2)
+    strategy.entry("L", strategy.long, comment="ENTER-LONG_BINANCE_ZECUSDT_ZEC-2M-CYBORG_2M_BOTKODU")
+// iz: yalnız sıkılaşır (trend: en iyi kapanış − trK × ATR 4 sa; taktik: sabit SL)
+if (pos == 1 and not tacOut) or doTrend or doTac
+    best := math.max(best, close)
+    if owner == 1
+        stopLvl := math.max(stopLvl, best - trDist)
+    strategy.exit("LX", from_entry="L", stop=stopLvl, comment="EXIT-ALL_BINANCE_ZECUSDT_ZEC-2M-CYBORG_2M_BOTKODU")
+
+// §§8 PANEL ────────────────────────────────────────────────────────────────────────────────────
+plot(strategy.position_size > 0 ? stopLvl : na, "İz / zarar kes", color.new(color.red, 0), 1, plot.style_linebr)
+plot(hh4, "Donchian 4 sa", color.new(color.blue, 60), 1, plot.style_stepline)
+plotshape(doTac, "TAKTİK", shape.triangleup, location.belowbar, color.new(color.teal, 0), size=size.tiny)
+plotshape(doTrend, "TREND", shape.triangleup, location.belowbar, color.new(color.blue, 0), size=size.small)
+var table tb = table.new(position.top_right, 2, 5, bgcolor=color.new(color.black, 20), border_width=1)
+if barstate.islast
+    table.cell(tb, 0, 0, "ZEC 2M V0.2", text_color=color.white)
+    table.cell(tb, 1, 0, owner == 1 ? "TREND" : owner == 2 ? "TAKTİK" : "BOŞ", text_color=owner == 1 ? color.blue : owner == 2 ? color.teal : color.gray)
+    table.cell(tb, 0, 1, "Oy toplamı", text_color=color.gray)
+    table.cell(tb, 1, 1, str.tostring(score), text_color=color.white)
+    table.cell(tb, 0, 2, "Donchian 4 sa", text_color=color.gray)
+    table.cell(tb, 1, 2, str.tostring(hh4, format.mintick), text_color=color.white)
+    table.cell(tb, 0, 3, "İz mesafesi %", text_color=color.gray)
+    table.cell(tb, 1, 3, str.tostring(trDist / close * 100, "#.0"), text_color=color.white)
+    table.cell(tb, 0, 4, "OI Δ1 sa %", text_color=color.gray)
+    table.cell(tb, 1, 4, na(dOi) ? "yok" : str.tostring(dOi, "#.00"), text_color=color.white)

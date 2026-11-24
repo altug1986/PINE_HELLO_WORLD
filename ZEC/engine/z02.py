@@ -20,7 +20,7 @@ def htf(B, rule, fn):
     H = B[['open', 'high', 'low', 'close']].resample(rule, label='left', closed='left').agg(
         {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last'}).dropna()
     v = pd.Series(fn(H), index=H.index + pd.Timedelta(rule))          # HTF kapanış anı
-    T = B.index + pd.Timedelta('2min')
+    T = B.index + pd.Timedelta('2min') - pd.Timedelta('1ms')          # Pine paritesi: HTF[1] + lookahead_on (sınır barında önceki HTF)
     return v.reindex(T, method='ffill').values
 
 
@@ -118,3 +118,51 @@ def run3(B, F, M, w, Tin, Tout, s=6.0, H=10**9):
     t = pd.DataFrame(T, columns=['ei', 'xi', 'side', 'ep', 'xp', 'pnl', 'mae'])
     t['et'] = B.index[t.ei.astype(int)]; t['xt'] = B.index[t.xi.astype(int)]
     return pd.Series(eq, index=B.index), t
+
+
+# ---------------- ÇEKİRDEK TREND + TAKTİK (sahip durum makinesi) ----------------
+@njit(cache=True)
+def sim4(o, h, l, c, atr, eL, eS, D, tL, tS, ts, tH, tD):
+    """Sahip 1 = TREND (giriş eL/eS, iz D[i] fiyat birimi, süre sınırı yok).
+       Sahip 2 = TAKTİK (yalnız trend boşken; giriş tL/tS, ilk SL ts*ATR, iz tD*ATR, süre tH bar).
+       Trend sinyali aynı yöndeki taktik pozisyonu devralır (giriş fiyatı korunur), ters yönde çevirir."""
+    n = len(c); eq = np.zeros(n); real = 0.0; pos = 0; own = 0; ep = 0.0; q = 0.0; stop = 0.0; best = 0.0; ei = 0; mae = 0.0; ae = 0.0
+    T = np.zeros((n // 2 + 10, 8)); nt = 0
+    for i in range(1, n):
+        if pos != 0:
+            if (pos == 1 and l[i] <= stop) or (pos == -1 and h[i] >= stop):
+                xp = (min(o[i], stop) - TICK) if pos == 1 else (max(o[i], stop) + TICK)
+                pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+                mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+                T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+                pos = 0; own = 0
+            else:
+                mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+        wT = 1 if eL[i] else (-1 if eS[i] else 0)
+        wK = 1 if tL[i] else (-1 if tS[i] else 0)
+        # çıkış/çevirme kararları (bar kapanışı)
+        ex = False
+        if pos != 0 and wT != 0 and wT != pos:
+            ex = True
+        elif pos != 0 and own == 2 and ((wK != 0 and wK != pos) or i - ei >= tH):
+            ex = True
+        blk = pos if (ex and own == 2 and i - ei >= tH and (wK == pos or wT == pos)) else 0   # Pine paritesi
+        if ex:
+            xp = c[i] - TICK * pos; pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+            T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+            pos = 0; own = 0
+        if pos != 0 and own == 2 and wT == pos:      # trend devralır
+            own = 1; stop = (max(stop, best - D[i]) if pos == 1 else min(stop, best + D[i]))
+        if pos == 0 and not np.isnan(atr[i]):
+            if wT != 0 and wT != blk and not np.isnan(D[i]):
+                pos = wT; own = 1; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; mae = 0.0; best = c[i]; stop = ep - pos * D[i]
+            elif wK != 0 and wK != blk:
+                pos = wK; own = 2; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; mae = 0.0; best = c[i]; ae = atr[i]; stop = ep - pos * ts * ae
+        if pos != 0:
+            dist = D[i] if own == 1 else tD * ae
+            if pos == 1:
+                best = max(best, c[i]); stop = max(stop, best - dist)
+            else:
+                best = min(best, c[i]); stop = min(stop, best + dist)
+        eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
+    return eq, T[:nt]
