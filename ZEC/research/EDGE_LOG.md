@@ -11,6 +11,12 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 | 11-24 | Spike fade LONG | dump sonrası long (V0.1 içinde) | 491 | IS +797 $ · OOS +753 $ | — | — | — | — | ✓ | KAZANAN | kapitülasyon kapısı: 2 g trend < −6 % (IS 756 / OOS 738), basis < −20 bps (650/710), BTC 40 dk < −1,7 % (794/504) → V0.2 adayı |
 | 11-24 | Spike fade SHORT | pump sonrası short (V0.1 içinde) | 546 | IS +118 $ · OOS −300 $ | — | — | — | — | ✗ | BEKLE | 8 bağlam (trend, ΔOI, basis, balina pozisyon, taker, BTC, emir defteri) iki yarıda birden pozitif dilim vermedi → short edge'i başka mekanizmada ara |
 | 11-24 | Yapı kırılımı (pump sonrası) | X % pump, W bar içinde L bar dibi kırılınca short (ayna long) | 635–3.027 | h240: +33/−3, −30/−7, −8/−14 | — | — | — | — | ✗ | ELENDİ | çizilen trend çizgisi kırılımının sayısal karşılığı tarih boyunca tutmadı |
+| 11-24 | HAM oylama | 17 Pine-taşınır bileşen eşit oy, Tin 2–8 | 9.400–60.900 | tümü negatif, ~−14 bps/işlem | %22 | — | — | — | ✗ | ELENDİ | yoğun trend oyları 2 dk'da çalkalanıyor |
+| 11-24 | Seçim: IS işaret | IS bilgi katsayısı işaretiyle ±1 (ters çevirme dahil), 96 ayar | 9.000–17.800 | iki yarıda pozitif 0/96 | — | — | — | — | ✗ | ELENDİ | — |
+| 11-24 | Seçim: beklenen değer ağırlığı | ağırlık = IS ileri getiri bps; skor ≥ 8–40 bps | 3.800–9.000 | iki yarıda pozitif 0/126 | — | — | — | — | ✗ | ELENDİ | OOS kalibrasyon U şekli: skor uçları iki yönde de +17,8 bps → büyüklük var, yön yok |
+| 11-24 | Seçim: meta (GBM/lojistik) | ham işlemlerden IS'te öğren, OOS üst %10–30 | 1.100–6.700 OOS | OOS PF 0,74–0,89 (balina/emir defteri dahil) | — | — | — | — | ✗ | ELENDİ | üretici kötü olunca seçim kurtarmıyor |
+| 11-24 | Seyrek aşırı oy | RSI, EMA240 sapma, spike, BB, OI tasfiye, basis + 4 s trend; ≥3 oy, 480 bar, SL 12 ATR | 3.831 | long IS +1.502 / OOS +1.466 · short IS −333 / OOS −1.145 | %46 (long) | 5,5 % (maks 34,9 ⚠) | — | — | ✓ long | BEKLE | long oylama: net 2.778, MaxDD 442 (V0.1: 291 ✗), SC4 0,009 (V0.1: 0,011 ✗) → SL/çıkış düzeltilmeli |
 
 ## Dersler (tek satır)
+- Bilgi tablosu (h60 IS/OOS bps): spike +16,8/+6,0 · basis +10,9/+8,0 · global L/S (h240) +18/+18 · 4 s trend (h240) +3/+13 · 2 dk trend ≈0/negatif · taker akışı ve BTC ters yönde ~2 bps (< maliyet 8,3).
 - ZEC 2 dk'da fiyat yalnızca aşırı hareketin dönüşünde kazandırıyor; kırılım/itki takibi maliyetin altında. Long tarafı (dump fade) sağlam, short tarafı (pump fade) 2021–26 boğasında kaybettiriyor.
