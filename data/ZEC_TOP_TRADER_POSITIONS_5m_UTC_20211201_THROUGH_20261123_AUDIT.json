@@ -1,0 +1,15 @@
+{
+  "symbol": "ZECUSDT",
+  "interval": "5m",
+  "start_utc": "2021-12-01",
+  "end_utc": "2026-11-23",
+  "days_scanned": 1819,
+  "status_counts": {
+    "OK": 1818,
+    "UNAVAILABLE_HTTP_404": 1
+  },
+  "unique_rows": 523444,
+  "toptrader_valid_rows": 431269,
+  "source": "https://data.binance.vision/data/futures/um/daily/metrics/ZECUSDT/",
+  "source_time_warning": "RAW Binance create_time (UTC). Backtest öncesi zaman semantiğini XMR kanonik dosyasıyla karşılaştır."
+}
