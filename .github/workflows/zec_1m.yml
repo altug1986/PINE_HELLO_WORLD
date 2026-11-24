@@ -1,0 +1,51 @@
+name: zec-1m
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/zec_1m.yml']
+permissions:
+  contents: write
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: download
+        run: |
+          mkdir -p data
+          python3 - <<'PY'
+          import io, zipfile, urllib.request, datetime as dt, gzip, csv, concurrent.futures as cf
+          sym='ZECUSDT'; months=[]; d=dt.date(2021,1,1)
+          while d<=dt.date(2026,10,1): months.append(d.strftime('%Y-%m')); d=(d.replace(day=28)+dt.timedelta(days=4)).replace(day=1)
+          days=[(dt.date(2026,11,1)+dt.timedelta(days=i)).isoformat() for i in range(23)]
+          def get(u):
+            try:
+              z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(u,timeout=90).read()))
+              return [l.split(',') for l in z.read(z.namelist()[0]).decode().splitlines() if l[:1].isdigit()]
+            except Exception as e: return []
+          urls=[f'https://data.binance.vision/data/futures/um/monthly/klines/{sym}/1m/{sym}-1m-{m}.zip' for m in months]+[f'https://data.binance.vision/data/futures/um/daily/klines/{sym}/1m/{sym}-1m-{x}.zip' for x in days]
+          with cf.ThreadPoolExecutor(8) as ex: parts=list(ex.map(get,urls))
+          rows={}
+          for p in parts:
+            for r in p: rows[int(r[0])]=r
+          ks=sorted(rows); log=[]
+          for y in range(2021,2027):
+            sel=[k for k in ks if dt.datetime.utcfromtimestamp(k/1000).year==y]
+            if not sel: continue
+            last=dt.datetime.utcfromtimestamp(sel[-1]/1000)
+            fn=f'data/ZECUSDT_1m_UTC_{y}0101_THROUGH_{last:%Y%m%d}.csv.gz'
+            with gzip.open(fn,'wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time','open','high','low','close','volume'])
+              for k in sel: r=rows[k]; w.writerow([k,r[1],r[2],r[3],r[4],r[5]])
+            log.append(f'{fn} {len(sel)} satır')
+          eks=sum(1 for p in parts if not p); log.append(f'boş/eksik dosya {eks}/{len(urls)}')
+          open('data/ZECUSDT_1m_LOG.txt','w').write('\n'.join(log)+'\n'); print('\n'.join(log))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/ZECUSDT_1m_*
+          git commit -m "data: ZECUSDT 1m OHLC 2021-01 → 2026-11-23 (data.binance.vision, yıllık parça)" || echo nothing
+          git pull --rebase origin main && git push
