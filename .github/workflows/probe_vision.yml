@@ -1,0 +1,32 @@
+name: probe-vision
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/probe_vision.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: probe
+        run: |
+          python3 - <<'PY'
+          import urllib.request, re, io, zipfile
+          B='https://s3-ap-northeast-1.amazonaws.com/data.binance.vision'
+          def keys(prefix):
+            out=[]; marker=''
+            while True:
+              x=urllib.request.urlopen(f'{B}?prefix={prefix}&marker={marker}',timeout=60).read().decode()
+              k=re.findall(r'<Key>([^<]+)</Key>',x); out+=k
+              if '<IsTruncated>true' not in x or not k: return out
+              marker=k[-1]
+          for kind in ['bookDepth','bookTicker','aggTrades','trades','liquidationSnapshot','metrics']:
+            for per in ['daily','monthly']:
+              k=[s for s in keys(f'data/futures/um/{per}/{kind}/ZECUSDT/') if s.endswith('.zip')]
+              print(f'{kind:20s} {per:7s} n={len(k):5d}', (k[0].split('/')[-1], k[-1].split('/')[-1]) if k else '')
+          k=[s for s in keys('data/futures/um/daily/bookDepth/ZECUSDT/') if s.endswith('.zip')]
+          if k:
+            for s in (k[0],k[-1]):
+              z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen('https://data.binance.vision/'+s,timeout=60).read()))
+              t=z.read(z.namelist()[0]).decode().splitlines(); print(s, len(t)); print('\n'.join(t[:14]))
+          PY
