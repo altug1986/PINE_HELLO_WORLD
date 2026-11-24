@@ -47,4 +47,4 @@ jobs:
           git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
           git add data/*_1m_UTC_20261113_THROUGH_*.csv.gz data/OHLC_1m_PATCH_20261113_LOG.txt
           git commit -m "data: 1m OHLC 13-24 Kas 2026 yaması (data.binance.vision)" || echo nothing
-          git push
+          git pull --rebase origin main && git push
