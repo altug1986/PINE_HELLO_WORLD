@@ -1,0 +1,106 @@
+name: zec-oi-balina
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/zec_oi.yml']
+permissions:
+  contents: write
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: download
+        run: |
+          mkdir -p data
+          python3 - <<'PY'
+          import io, zipfile, urllib.request, urllib.error, datetime as dt, gzip, csv, json, concurrent.futures as cf
+          from decimal import Decimal
+          S='ZECUSDT'; C='zec'; END=dt.date(2026,11,23)
+          def fetch(u):
+            try:
+              z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(u,timeout=90).read()))
+              return 'OK',z.read(z.namelist()[0]).decode().splitlines()
+            except urllib.error.HTTPError as e: return f'UNAVAILABLE_HTTP_{e.code}',[]
+            except Exception as e: return 'ERROR',[]
+          # 1) METRICS (OI + balina/top trader + global + taker oranı), günlük 5dk
+          days=[]; d=dt.date(2021,12,1)
+          while d<=END: days.append(d); d+=dt.timedelta(days=1)
+          def met(day):
+            st,ls=fetch(f'https://data.binance.vision/data/futures/um/daily/metrics/{S}/{S}-metrics-{day}.zip')
+            rows=[l.split(',') for l in ls if l[:1].isdigit()]
+            return day,st,rows
+          with cf.ThreadPoolExecutor(16) as ex: res=list(ex.map(met,days))
+          M={}; man=[]
+          for day,st,rows in res:
+            ok=0
+            for r in rows:
+              t=dt.datetime.strptime(r[0][:19],'%Y-%m-%d %H:%M:%S').replace(tzinfo=dt.timezone.utc)
+              M[t]=r; ok+=1
+            man.append([str(day),st if (st!='OK' or ok) else 'NO_SOURCE_VALUES',ok])
+          ks=sorted(M)
+          tag=f'UTC_20211201_THROUGH_{END:%Y%m%d}'
+          def fl(x):
+            try: return float(x) if x not in ('',None) else None
+            except: return None
+          with gzip.open(f'data/{S}_METRICS_5m_{tag}.csv.gz','wt',newline='') as f:
+            w=csv.writer(f); w.writerow(['timestamp_utc','timestamp_ms',f'open_interest_{C}','open_interest_usdt','top_trader_accounts_ls','top_trader_positions_ls','global_accounts_ls','taker_long_short_vol_ratio','flag_oi','flag_accounts','flag_positions','flag_global'])
+            for t in ks:
+              r=M[t]; v=[fl(x) for x in r[2:8]]
+              w.writerow([t.strftime('%Y-%m-%dT%H:%M:%SZ'),int(t.timestamp()*1000)]+[('' if x is None else r[2+i]) for i,x in enumerate(v)]+[
+                 '' if v[0] else 'MISSING','' if v[2] else 'MISSING','' if v[3] else 'MISSING','' if v[4] else 'MISSING'])
+          for step,lab in ((5,'5m'),(10,'10m')):
+            with gzip.open(f'data/{S}_OI_{lab}_UTC_THROUGH_{END:%Y%m%d}.csv.gz','wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['create_time_utc','symbol','sum_open_interest','sum_open_interest_value','durum'])
+              for t in ks:
+                if t.minute%step: continue
+                r=M[t]; w.writerow([t.strftime('%Y-%m-%d %H:%M:%S'),S,r[2],r[3],'OK' if fl(r[2]) else 'BOS'])
+          with gzip.open(f'data/ZEC_TOP_TRADER_POSITIONS_5m_{tag}.csv.gz','wt',newline='') as f:
+            w=csv.writer(f); w.writerow(['archive_create_time_utc_RAW','sum_toptrader_long_short_ratio','source_file_utc_day','source']); n=0
+            for t in ks:
+              if fl(M[t][5]): w.writerow([t.strftime('%Y-%m-%d %H:%M:%S'),M[t][5],t.date(),'BINANCE_VISION_DAILY_METRICS']); n+=1
+          with open(f'data/ZEC_TOP_TRADER_POSITIONS_5m_{tag}_MISSING_DAYS.csv','w') as f:
+            f.write('archive_utc_day,status,source_rows\n'); [f.write(f'{a},{b},{c}\n') for a,b,c in man if b!='OK']
+          sc={}
+          for a,b,c in man: sc[b]=sc.get(b,0)+1
+          json.dump(dict(symbol=S,interval='5m',start_utc='2021-12-01',end_utc=str(END),days_scanned=len(man),status_counts=sc,unique_rows=len(ks),toptrader_valid_rows=n,
+             source=f'https://data.binance.vision/data/futures/um/daily/metrics/{S}/',source_time_warning='RAW Binance create_time (UTC). Backtest öncesi zaman semantiğini XMR kanonik dosyasıyla karşılaştır.'),
+             open(f'data/ZEC_TOP_TRADER_POSITIONS_5m_{tag}_AUDIT.json','w'),indent=2,ensure_ascii=False)
+          print('metrics',len(ks),sc)
+          # 2) TAKER BUY/SELL 5dk (5m kline'dan)
+          months=[]; d=dt.date(2021,1,1)
+          while d<=dt.date(2026,10,1): months.append(d.strftime('%Y-%m')); d=(d.replace(day=28)+dt.timedelta(days=4)).replace(day=1)
+          urls=[(f'https://data.binance.vision/data/futures/um/monthly/klines/{S}/5m/{S}-5m-{m}.zip','BINANCE_VISION_MONTHLY_5M') for m in months]+[(f'https://data.binance.vision/data/futures/um/daily/klines/{S}/5m/{S}-5m-{x}.zip','BINANCE_VISION_DAILY_5M') for x in [(dt.date(2026,11,1)+dt.timedelta(days=i)).isoformat() for i in range(23)]]
+          with cf.ThreadPoolExecutor(12) as ex: kl=list(ex.map(lambda u:(u[1],fetch(u[0])[1]),urls))
+          K={}
+          for src,ls in kl:
+            for l in ls:
+              if l[:1].isdigit(): p=l.split(','); K[int(p[0])]=(p,src)
+          with gzip.open(f'data/{S}_PERP_TAKER_BUY_SELL_5m_UTC_20210101_THROUGH_{END:%Y%m%d}.csv.gz','wt',newline='') as f:
+            w=csv.writer(f); w.writerow(['open_time_utc','open_time_ms','available_from_utc','close_price',f'taker_buy_{C}',f'taker_sell_{C}','taker_buy_usdt','taker_sell_usdt',f'total_{C}','total_usdt','taker_buy_share','buy_sell_ratio',f'delta_{C}','delta_usdt','data_source'])
+            for k in sorted(K):
+              p,src=K[k]; vol=Decimal(p[5]); qv=Decimal(p[7]); bb=Decimal(p[9]); bq=Decimal(p[10]); sb=vol-bb; sq=qv-bq
+              t=dt.datetime.fromtimestamp(k/1000,dt.timezone.utc)
+              w.writerow([t.strftime('%Y-%m-%dT%H:%M:%SZ'),k,(t+dt.timedelta(minutes=5)).strftime('%Y-%m-%dT%H:%M:%SZ'),p[4],bb,sb,bq,sq,vol,qv,(bb/vol if vol else ''),(bb/sb if sb else ''),bb-sb,bq-sq,src])
+          print('taker',len(K))
+          # 3) FUNDING
+          fr=[]
+          for m in months+['2026-11']:
+            st,ls=fetch(f'https://data.binance.vision/data/futures/um/monthly/fundingRate/{S}/{S}-fundingRate-{m}.zip')
+            fr+= [l.split(',') for l in ls if l[:1].isdigit()]
+          fr.sort(key=lambda p:int(p[0]))
+          with open(f'data/{S}_FUNDING_EVENTS_20210101_{END:%Y%m%d}.csv','w',newline='') as f:
+            w=csv.writer(f); w.writerow(['symbol','funding_time_utc','funding_time_ms','funding_rate_decimal','funding_rate_percent','mark_price','rate_type'])
+            for p in fr:
+              t=dt.datetime.fromtimestamp(int(p[0])/1000,dt.timezone.utc); r=Decimal(p[2])
+              w.writerow([S,t.strftime('%Y-%m-%dT%H:%M:%S.000Z'),p[0],f'{r:.12f}',f'{r*100:.12f}','','Regular'])
+          print('funding',len(fr))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/ZEC*
+          git commit -m "data: ZECUSDT OI/balina (metrics 5m), OI 5m/10m, top trader, taker buy/sell 5m, funding" || echo nothing
+          git pull --rebase origin main && git push
