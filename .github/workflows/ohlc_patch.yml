@@ -1,0 +1,50 @@
+name: ohlc-1m-patch
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/ohlc_patch.yml']
+permissions:
+  contents: write
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: download
+        run: |
+          python3 - <<'PY'
+          import io, zipfile, urllib.request, datetime as dt, gzip, csv
+          SYMS=['XMRUSDT','DOGEUSDT','1000PEPEUSDT','BATUSDT','LTCUSDT','ETCUSDT','ADAUSDT','BTCDOMUSDT','BTCUSDT']
+          d0=dt.date(2026,11,13); d1=dt.date(2026,11,24)
+          log=[]
+          for s in SYMS:
+            rows=[]; got=[]
+            d=d0
+            while d<=d1:
+              u=f'https://data.binance.vision/data/futures/um/daily/klines/{s}/1m/{s}-1m-{d}.zip'
+              try:
+                z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(u,timeout=60).read()))
+                for line in z.read(z.namelist()[0]).decode().splitlines():
+                  p=line.split(',')
+                  if not p[0].isdigit(): continue
+                  rows.append(p); 
+                got.append(str(d))
+              except Exception as e: log.append(f'{s} {d} YOK {e}')
+              d+=dt.timedelta(days=1)
+            if not rows: continue
+            rows.sort(key=lambda p:int(p[0])); last=got[-1].replace('-','')
+            fn=f'data/{s}_1m_UTC_20261113_THROUGH_{last}.csv.gz'
+            with gzip.open(fn,'wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time','datetime_utc','datetime_tr','open','high','low','close','volume'])
+              for p in rows:
+                t=int(p[0]); u=dt.datetime.utcfromtimestamp(t/1000)
+                w.writerow([t,u.strftime('%Y-%m-%d %H:%M:%S'),(u+dt.timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S'),p[1],p[2],p[3],p[4],p[5]])
+            log.append(f'{s} {len(rows)} satır {got[0]}..{got[-1]} -> {fn}')
+          open('data/OHLC_1m_PATCH_20261113_LOG.txt','w').write('\n'.join(log)+'\n'); print('\n'.join(log))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add data/*_1m_UTC_20261113_THROUGH_*.csv.gz data/OHLC_1m_PATCH_20261113_LOG.txt
+          git commit -m "data: 1m OHLC 13-24 Kas 2026 yaması (data.binance.vision)" || echo nothing
+          git push
