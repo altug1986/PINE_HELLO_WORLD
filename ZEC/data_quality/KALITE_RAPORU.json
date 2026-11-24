@@ -1,0 +1,147 @@
+{
+ "1m": {
+  "rows": 3093120,
+  "dup": 0,
+  "mono": true,
+  "start": "2021-01-01 00:00:00",
+  "end": "2026-11-23 23:59:00",
+  "bad_ohlc": 0,
+  "zero_vol": 4309,
+  "gaps": 2,
+  "missing_min": 7200,
+  "big_gaps": [
+   [
+    "2022-02-26",
+    "2022-03-01",
+    "4320.0"
+   ],
+   [
+    "2022-04-01",
+    "2022-04-03",
+    "2880.0"
+   ]
+  ],
+  "jumps_gt_15pct": 2
+ },
+ "metrics": {
+  "rows": 523444,
+  "dup": 0,
+  "mono": true,
+  "aligned5m": 0,
+  "start": "2021-12-01T00:00:00Z",
+  "end": "2026-11-23T23:55:00Z",
+  "nan": {
+   "open_interest_zec": 0,
+   "top_trader_accounts_ls": 92220,
+   "top_trader_positions_ls": 92175,
+   "global_accounts_ls": 5789,
+   "taker_long_short_vol_ratio": 37279
+  },
+  "zero_oi": 198,
+  "flags": {
+   "flag_oi": {
+    "MISSING": 198
+   },
+   "flag_accounts": {
+    "MISSING": 92220
+   },
+   "flag_positions": {
+    "MISSING": 92175
+   },
+   "flag_global": {
+    "MISSING": 5789
+   }
+  },
+  "gaps_gt5m": 11,
+  "max_gap_h": 24.083333333333332,
+  "stamp_test_spearman_|dOI|_vs_vol_lag": {
+   "-3": 0.4086,
+   "-2": 0.4207,
+   "-1": 0.4466,
+   "0": 0.5786,
+   "1": 0.5371,
+   "2": 0.4467,
+   "3": 0.4262
+  }
+ },
+ "taker": {
+  "rows": 618624,
+  "dup": 0,
+  "start": "2021-01-01 00:00:00",
+  "end": "2026-11-23 23:55:00",
+  "src": {
+   "BINANCE_VISION_MONTHLY_5M": 612000,
+   "BINANCE_VISION_DAILY_5M": 6624
+  },
+  "vol_match_rel_err_med": 0.0,
+  "close_match_pct": 100.0
+ },
+ "OI_5m": {
+  "rows": 523444,
+  "start": "2021-12-01 00:00:00",
+  "end": "2026-11-23 23:55:00",
+  "durum": {
+   "OK": 523246,
+   "BOS": 198
+  },
+  "dup": 0
+ },
+ "OI_10m": {
+  "rows": 261723,
+  "start": "2021-12-01 00:00:00",
+  "end": "2026-11-23 23:50:00",
+  "durum": {
+   "OK": 261625,
+   "BOS": 98
+  },
+  "dup": 0
+ },
+ "funding": {
+  "rows": 6390,
+  "start": "2021-01-01T00:00:00.000Z",
+  "end": "2026-10-31T16:00:00.000Z",
+  "interval_h": {
+   "8.0": 6389
+  },
+  "rate_pct_min": -1.639734,
+  "rate_pct_max": 0.325668
+ },
+ "yearly_price": {
+  "2021": {
+   "first": 64.07,
+   "last": 146.39,
+   "min": 54.45,
+   "max": 371.31
+  },
+  "2022": {
+   "first": 146.56,
+   "last": 37.27,
+   "min": 33.03,
+   "max": 215.15
+  },
+  "2023": {
+   "first": 37.27,
+   "last": 26.93,
+   "min": 21.43,
+   "max": 51.24
+  },
+  "2024": {
+   "first": 26.95,
+   "last": 56.25,
+   "min": 15.88,
+   "max": 79.35
+  },
+  "2025": {
+   "first": 56.34,
+   "last": 511.78,
+   "min": 24.77,
+   "max": 740.92
+  },
+  "2026": {
+   "first": 511.18,
+   "last": 776.4,
+   "min": 185.11,
+   "max": 1685.56
+  }
+ }
+}
