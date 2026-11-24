@@ -1,0 +1,133 @@
+name: zec-book-whale
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/zec_book.yml']
+permissions:
+  contents: write
+jobs:
+  bookdepth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: bookDepth -> 1 dk
+        run: |
+          mkdir -p data
+          python3 - <<'PY'
+          import io, zipfile, urllib.request, re, gzip, csv, datetime as dt, concurrent.futures as cf
+          B='https://s3-ap-northeast-1.amazonaws.com/data.binance.vision'
+          def keys(prefix):
+            out=[]; m=''
+            while True:
+              x=urllib.request.urlopen(f'{B}?prefix={prefix}&marker={m}',timeout=60).read().decode()
+              k=re.findall(r'<Key>([^<]+)</Key>',x); out+=k
+              if '<IsTruncated>true' not in x or not k: return out
+              m=k[-1]
+          ks=[s for s in keys('data/futures/um/daily/bookDepth/ZECUSDT/') if s.endswith('.zip')]
+          LV=['-5','-4','-3','-2','-1','-0.2','0.2','1','2','3','4','5']
+          def get(s):
+            try:
+              z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen('https://data.binance.vision/'+s,timeout=90).read()))
+              out={}
+              for l in z.read(z.namelist()[0]).decode().splitlines():
+                p=l.split(',')
+                if not p[0][:1].isdigit(): continue
+                t=dt.datetime.strptime(p[0][:19],'%Y-%m-%d %H:%M:%S').replace(tzinfo=dt.timezone.utc).timestamp()
+                lv=('%g'%float(p[1])); mn=int(t//60)*60000
+                r=out.setdefault(mn,{})
+                if r.get('_s',0)<=t: r['_s']=t
+                r[(lv,t)]=p[3]
+              res={}
+              for mn,r in out.items():
+                s=r['_s']; res[mn]=[int(s)]+[ (str(round(float(r[(lv,s)]))) if (lv,s) in r else '') for lv in LV]
+              return res, None
+            except Exception as e: return {}, s
+          rows={}; bad=[]
+          with cf.ThreadPoolExecutor(8) as ex:
+            for res,b in ex.map(get,ks):
+              rows.update(res)
+              if b: bad.append(b)
+          kk=sorted(rows); log=[f'bookDepth gün {len(ks)}, hatalı {len(bad)}']
+          for y in range(2023,2027):
+            sel=[k for k in kk if dt.datetime.utcfromtimestamp(k/1000).year==y]
+            if not sel: continue
+            last=dt.datetime.utcfromtimestamp(sel[-1]/1000)
+            fn=f'data/ZECUSDT_BOOKDEPTH_1m_UTC_{y}0101_THROUGH_{last:%Y%m%d}.csv.gz'
+            with gzip.open(fn,'wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time','snap_s']+['notional_'+('m' if lv[0]=='-' else 'p')+lv.lstrip('-').replace('.','') for lv in LV])
+              for k in sel: w.writerow([k]+rows[k])
+            log.append(f'{fn} {len(sel)} dakika')
+          open('data/ZECUSDT_BOOKDEPTH_LOG.txt','w').write('\n'.join(log+bad)+'\n'); print('\n'.join(log))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/ZECUSDT_BOOKDEPTH_*
+          git commit -m "data: ZECUSDT emir defteri derinliği (bookDepth ±0,2–5%) 1 dk, 2023-01 → 2026-11-23" || echo nothing
+          for i in 1 2 3 4 5; do git pull --rebase origin main && git push && break; sleep 20; done
+  whale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: aggTrades -> balina printleri 1 dk
+        run: |
+          mkdir -p data; pip -q install pandas
+          python3 - <<'PY'
+          import urllib.request, zipfile, os, datetime as dt, concurrent.futures as cf, pandas as pd, numpy as np
+          sym='ZECUSDT'; months=[]; d=dt.date(2020,2,1)
+          while d<=dt.date(2026,10,1): months.append(d.strftime('%Y-%m')); d=(d.replace(day=28)+dt.timedelta(days=4)).replace(day=1)
+          days=[(dt.date(2026,11,1)+dt.timedelta(days=i)).isoformat() for i in range(23)]
+          urls=[f'https://data.binance.vision/data/futures/um/monthly/aggTrades/{sym}/{sym}-aggTrades-{m}.zip' for m in months]+[f'https://data.binance.vision/data/futures/um/daily/aggTrades/{sym}/{sym}-aggTrades-{x}.zip' for x in days]
+          TH=[10_000,50_000,200_000,1_000_000]
+          def proc(u):
+            fn='/tmp/'+u.split('/')[-1]
+            try:
+              urllib.request.urlretrieve(u,fn); z=zipfile.ZipFile(fn); nm=z.namelist()[0]
+              with z.open(nm) as f: head=f.readline().decode()
+              hdr=0 if not head[:1].isdigit() else None
+              parts=[]
+              with z.open(nm) as f:
+                for ch in pd.read_csv(f,header=hdr,usecols=[1,2,5,6],names=None if hdr is None else None,chunksize=4_000_000):
+                  ch.columns=['price','qty','ms','bm']
+                  ch['q']=ch.price*ch.qty; ch['sell']=ch.bm.astype(str).str.lower().eq('true')
+                  o=ch.groupby(['ms','sell'],sort=False).q.sum().reset_index()   # aynı ms + yön = aynı taker emri (yaklaşık)
+                  o=o[o.q>=TH[0]]
+                  if len(o): parts.append(o)
+              os.remove(fn)
+              return pd.concat(parts) if parts else None, None
+            except Exception as e:
+              if os.path.exists(fn): os.remove(fn)
+              return None, f'{u} {e}'
+          allo=[]; bad=[]
+          with cf.ThreadPoolExecutor(3) as ex:
+            for o,b in ex.map(proc,urls):
+              if o is not None: allo.append(o)
+              if b: bad.append(b)
+          o=pd.concat(allo).groupby(['ms','sell']).q.sum().reset_index()
+          o['time']=o.ms//60000*60000; out=[]
+          for side,s in [('buy',False),('sell',True)]:
+            x=o[o.sell==s]; g=x.groupby('time')
+            cols={f'{side}_max':g.q.max()}
+            for t in TH:
+              y=x[x.q>=t].groupby('time').q; k=f'{t//1000}k'
+              cols[f'{side}_n{k}']=y.size(); cols[f'{side}_q{k}']=y.sum()
+            out.append(pd.DataFrame(cols))
+          r=pd.concat(out,axis=1).fillna(0).sort_index()
+          r=r.round(0).astype('int64'); log=[f'aggTrades dosya {len(urls)}, hatalı {len(bad)}, ≥10k emir {len(o)}']
+          r.index=r.index.astype('int64'); yr=pd.to_datetime(r.index,unit='ms').year
+          for y in sorted(set(yr)):
+            s=r[yr==y]; last=pd.to_datetime(s.index[-1],unit='ms')
+            fn=f'data/ZECUSDT_WHALE_PRINTS_1m_UTC_{y}_THROUGH_{last:%Y%m%d}.csv.gz'
+            s.to_csv(fn,index_label='time',compression='gzip'); log.append(f'{fn} {len(s)} dakika')
+          open('data/ZECUSDT_WHALE_PRINTS_LOG.txt','w').write('\n'.join(log+bad)+'\n'); print('\n'.join(log+bad))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/ZECUSDT_WHALE_PRINTS_*
+          git commit -m "data: ZECUSDT balina printleri (aggTrades taker emri ≥10k/50k/200k/1M USDT) 1 dk, 2020-02 → 2026-11-23" || echo nothing
+          for i in 1 2 3 4 5; do git pull --rebase origin main && git push && break; sleep 20; done
