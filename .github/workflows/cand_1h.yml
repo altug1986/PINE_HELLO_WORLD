@@ -1,0 +1,51 @@
+name: aday-coin-1h
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/cand_1h.yml']
+permissions:
+  contents: write
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: download
+        run: |
+          mkdir -p data/candidates_1h
+          python3 - <<'PY'
+          import io, zipfile, urllib.request, datetime as dt, gzip, csv, concurrent.futures as cf
+          SYMS="GMT TUT OP ZEC DASH ZEN TRX XLM ATOM NEAR FIL ICP ALGO EGLD KSM AAVE SNX CRV ENS GALA SAND AXS CHZ APE FET INJ ROSE KAVA NEO QTUM IOTA XTZ RUNE DYDX LINK ETH BTC XMR LTC DOGE ADA ETC BAT 1000PEPE BTCDOM PAXG HBAR VET THETA ONE ZIL RVN STORJ BAND ANKR COTI LPT MASK WOO".split()
+          months=[]; d=dt.date(2021,1,1)
+          while d<=dt.date(2026,10,1): months.append(d.strftime('%Y-%m')); d=(d.replace(day=28)+dt.timedelta(days=4)).replace(day=1)
+          days=[(dt.date(2026,11,1)+dt.timedelta(days=i)).isoformat() for i in range(23)]
+          def get(u):
+            try:
+              z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(u,timeout=60).read()))
+              return [l.split(',') for l in z.read(z.namelist()[0]).decode().splitlines() if l[:1].isdigit()]
+            except Exception: return []
+          log=[]
+          def one(s):
+            sym=s+'USDT'; rows=[]
+            for m in months: rows+=get(f'https://data.binance.vision/data/futures/um/monthly/klines/{sym}/1h/{sym}-1h-{m}.zip')
+            for dd in days: rows+=get(f'https://data.binance.vision/data/futures/um/daily/klines/{sym}/1h/{sym}-1h-{dd}.zip')
+            if not rows: return f'{sym} YOK'
+            rows.sort(key=lambda p:int(p[0]))
+            with gzip.open(f'data/candidates_1h/{sym}_1h.csv.gz','wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time','open','high','low','close','volume','quote_volume'])
+              seen=set()
+              for p in rows:
+                if p[0] in seen: continue
+                seen.add(p[0]); w.writerow([p[0],p[1],p[2],p[3],p[4],p[5],p[7]])
+            return f'{sym} {len(seen)} saat, ilk {dt.datetime.utcfromtimestamp(int(rows[0][0])/1000):%Y-%m-%d}'
+          with cf.ThreadPoolExecutor(12) as ex: log=list(ex.map(one,SYMS))
+          open('data/candidates_1h/LOG.txt','w').write('\n'.join(log)+'\n'); print('\n'.join(log))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/candidates_1h
+          git commit -m "data: aday coin 1h kline (2021-2026-11-23, data.binance.vision)" || echo nothing
+          git pull --rebase origin main && git push
