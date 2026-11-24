@@ -1,0 +1,64 @@
+name: zec-micro
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/zec_micro.yml']
+permissions:
+  contents: write
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: download
+        run: |
+          mkdir -p data
+          python3 - <<'PY'
+          import io, zipfile, urllib.request, datetime as dt, gzip, csv, concurrent.futures as cf
+          sym='ZECUSDT'; months=[]; d=dt.date(2021,1,1)
+          while d<=dt.date(2026,10,1): months.append(d.strftime('%Y-%m')); d=(d.replace(day=28)+dt.timedelta(days=4)).replace(day=1)
+          days=[(dt.date(2026,11,1)+dt.timedelta(days=i)).isoformat() for i in range(23)]
+          def get(u):
+            try:
+              z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(u,timeout=90).read()))
+              return [l.split(',') for l in z.read(z.namelist()[0]).decode().splitlines() if l[:1].isdigit()]
+            except Exception: return []
+          def fetch(kind):
+            urls=[f'https://data.binance.vision/data/futures/um/monthly/{kind}/{sym}/1m/{sym}-1m-{m}.zip' for m in months]+[f'https://data.binance.vision/data/futures/um/daily/{kind}/{sym}/1m/{sym}-1m-{x}.zip' for x in days]
+            with cf.ThreadPoolExecutor(8) as ex: parts=list(ex.map(get,urls))
+            rows={}
+            for p in parts:
+              for r in p: rows[int(r[0])]=r
+            return rows, sum(1 for p in parts if not p), len(urls)
+          log=[]
+          # 1) tam kline: taker alış + işlem sayısı (1 dk akış)
+          rows,eks,n=fetch('klines'); ks=sorted(rows)
+          for y in range(2021,2027):
+            sel=[k for k in ks if dt.datetime.utcfromtimestamp(k/1000).year==y]
+            if not sel: continue
+            last=dt.datetime.utcfromtimestamp(sel[-1]/1000)
+            fn=f'data/ZECUSDT_1m_FLOW_UTC_{y}0101_THROUGH_{last:%Y%m%d}.csv.gz'
+            with gzip.open(fn,'wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time','quote_volume','trades','taker_buy_base','taker_buy_quote'])
+              for k in sel: r=rows[k]; w.writerow([k,r[7],r[8],r[9],r[10]])
+            log.append(f'{fn} {len(sel)} satır')
+          log.append(f'klines boş/eksik dosya {eks}/{n}')
+          # 2) premium index ve 3) index fiyatı (basis = vadeli kapanış / index - 1)
+          for kind,col,tag in [('premiumIndexKlines','premium_close','PREMIUM_INDEX'),('indexPriceKlines','index_close','INDEX_PRICE')]:
+            rows,eks,n=fetch(kind); ks=sorted(rows)
+            last=dt.datetime.utcfromtimestamp(ks[-1]/1000)
+            fn=f'data/ZECUSDT_{tag}_1m_UTC_20210101_THROUGH_{last:%Y%m%d}.csv.gz'
+            with gzip.open(fn,'wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time',col])
+              for k in ks: w.writerow([k,rows[k][4]])
+            log.append(f'{fn} {len(ks)} satır · {kind} boş/eksik dosya {eks}/{n}')
+          open('data/ZECUSDT_MICRO_LOG.txt','w').write('\n'.join(log)+'\n'); print('\n'.join(log))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/ZECUSDT_1m_FLOW_* data/ZECUSDT_PREMIUM_INDEX_* data/ZECUSDT_INDEX_PRICE_* data/ZECUSDT_MICRO_LOG.txt
+          git commit -m "data: ZECUSDT 1m akış (taker alış, işlem sayısı) + premium index + index fiyatı 1m (basis)" || echo nothing
+          git pull --rebase origin main && git push
