@@ -17,7 +17,7 @@ jobs:
           mkdir -p data/candidates_1h
           python3 - <<'PY'
           import io, zipfile, urllib.request, datetime as dt, gzip, csv, concurrent.futures as cf
-          SYMS="GMT TUT OP ZEC DASH ZEN TRX XLM ATOM NEAR FIL ICP ALGO EGLD KSM AAVE SNX CRV ENS GALA SAND AXS CHZ APE FET INJ ROSE KAVA NEO QTUM IOTA XTZ RUNE DYDX LINK ETH BTC XMR LTC DOGE ADA ETC BAT 1000PEPE BTCDOM PAXG HBAR VET THETA ONE ZIL RVN STORJ BAND ANKR COTI LPT MASK WOO".split()
+          SYMS="T".split()
           months=[]; d=dt.date(2021,1,1)
           while d<=dt.date(2026,10,1): months.append(d.strftime('%Y-%m')); d=(d.replace(day=28)+dt.timedelta(days=4)).replace(day=1)
           days=[(dt.date(2026,11,1)+dt.timedelta(days=i)).isoformat() for i in range(23)]
