@@ -207,3 +207,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Sonuç: iki yarıda artı 0; Calmar artıp iki yarı tutan 0; SC4 artıran 0. En iyi PF (90 gün ≥ 0,7) −21 $; ilk yarı seçimi (90 gün ≥ 0,8) ikinci yarı −360 $, MaxDD 424; en iyi Super-Calmar (60 gün ≥ −0,5) −976 $, SC4 0,074 → 0,049.
 - Tek risk iyileştiren: short PF son 5 < 0,9 → short açma: MaxDD 391→351, DD P99 343→278, Calmar 3,93→4,12; net −536 (−%5,9), ilk yarı −584 / ikinci +48, SC4 0,063. Kapı geçmiyor.
 - Karar: V2.9 kalıyor. Dosya: engine/pffilt*.py, research/PF_SUPERCALMAR_FILTRE_1DK.csv.
+
+## 2026-11-25 — Mikro gir-çık katmanı + filtre (RET)
+- Tetik: RSI10 ≥ 86/88/90/92, z-skor 60/240 dk ≥ 2,5/3/3,5, iklim mumu 3/5 ATR + hacim 3/5x. Filtre: hacim 2/3/5x, OI 15 dk ≤ −%0,5/−%1 ve ≥ +%0,5/+%1, BTC 15 dk |%| ≤ 0,3/0,6, fitil ≥ 0,3/0,5. Çıkış RSI10 50/60/70, süre 60/240, stop %1/%2, %3 devam/kâr. V2.9 uç TERS öncelikli, 500 $ sabit, piramit yok.
+- Baz pozisyondayken ters mikro (+ seçmeli FLAT'ta ortalamaya dönüş) 4.032 varyant: medyan +1.030 mikro işlem, mikro PF medyan 0,71, PF>1 %8,8; medyan −1.362 $, en iyi +27 $, iki yarı %0,3. Eşik V2.9'un RSI10 ≥ 94'üne yaklaştıkça zarar sıfıra iniyor.
+- Baz FLAT iken momentum mikro 2.016 varyant: medyan 248 işlem, PF 0,75; medyan −162 $, en iyi +101 $ (z240 ≥ 2,5 + OI15 ≤ −%1; 142 işlem, PF 1,32, IS +44 / OOS +57, MaxDD +2). Kapı +544 $; geçmiyor.
+- Karar: V2.9 kalıyor. Dosya: engine/mikro.py, engine/mikro2.py, research/MIKRO_KATMAN_1DK.csv.gz.
