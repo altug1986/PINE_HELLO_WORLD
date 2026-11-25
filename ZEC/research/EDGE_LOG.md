@@ -104,3 +104,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - İki yarı uzlaşma seçimi: 6.826, MaxDD 873 → RET.
 - POMPA olay taraması (10 bar ≥ %3 → long): tek başına 484 işlem +1.684 $, 6/6 yıl; sisteme en yüksek öncelikle eklenince 8.427 / MaxDD 778 (pompa sonrası short'ları kesiyor) → RET.
 - POMPA en düşük öncelik (hacim ≥3×, stop 8×ATR, 480 dk): 8.389 (−%3,3), MaxDD 386; pompa işlemleri 147 adet −126 $ → eşik geçmedi; kullanıcı isteğiyle V2.4 Pine'a eklendi.
+
+## 2026-11-25 — Yürüyen seçim (hedef: yakın pencere %1400)
+- TV V2.6 yakın pencere: 4.203 $ / MaxDD 517 / PF 1,367 (V2.3: 4.365 / 401) → pompa motoru TV'de de bedelli.
+- Yürüyen seçim (kurallar yalnız geçmişten, 3–6 ay blok): yakın pencere 1.766–2.654 $ (baz 4.034), MaxDD 713–891 → RET.
+- Kritik: yürüyen seçimde 2022 +82 / 2023 −255 (baz 2.184 / 140 seçim içi). Gerçek OOS kanıt = 2024–2026 (baz seçimi 2021–2023): +3.923 $ ≈ 1.350 $/yıl.
