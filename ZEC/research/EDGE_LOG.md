@@ -61,3 +61,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 | Video dersleri (kayma stresi %0,08 + 3 tick, en uzun yatay kalma) | R5: net 4.211 → 3.169 (−%25), en uzun yatay 404 gün (2025-10-13'ten bugüne sürüyor), stresle 963 gün; dengeli taşı 751 gün; çoklu motor 378 gün | asıl sorun son 3 hafta değil: tüm adaylar 2025-10'dan beri yatay |
 - Ders: hedef pencereyi (son 2 ay / 23 Kasım) zorla düzeltmek zayıf dönemi ve iki yarı dengesini bozuyor; tarih hedefli optimizasyon aşırı uyum.
 - Ders: işlem başı kenar ~47 bps; %2000 için 1.750 işlemde ~114 bps gerekiyor (2,4×). Ortalama alma (çoklu motor) neti yükseltemez, yalnız DD'yi düşürür.
+
+### 2026-11-25 — Sağlamlık gaması (11 aday; MC bootstrap %5 atla +0,05 $, shuffle, 12 ay ileri MTM DD blok bootstrap, monkey yön/zaman 1.000'er, OOS)
+- Kural: sistem monkey'lerin EN İYİSİNİ geçmeli. Geçen 3 aday: ORTA-R (15/240/3/3, ts8, tH960), HIZLI-R (10/120/2/2, ts24, tH480), ÇOKLU-6.
+- R5 (BoB) ve tüm TAŞI varyantları elendi: yön monkey maksimumu 4.802 > sistem 3.990; zaman monkey p 0,017.
+- Gama OOS: IS'te en iyi = ÇOKLU-6 → OOS'ta da 1/11; OOS'ta en iyi → IS'te de 1/11.
+- SEÇİLEN: ÇOKLU-6 — net 2.265, MaxDD 163, DD P98 91, 12 ay ileri DD P95/P99 162/201, 12 ay zarar olasılığı %0,65, stres −%19. Bedel: net R5'in yarısı. Alternatif tek motor HIZLI-R: net 3.701, MaxDD 362, 12 ay DD P99 706, stres −%46 (maliyete kırılgan).
+- Monkey zaman testinde ilk koşudaki hata: miktar gerçek giriş fiyatından hesaplanmıştı (500/gerçek fiyat) → rastgele zamanın fiyatıyla düzeltildi.
