@@ -153,3 +153,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Bileşim (ZEC/engine/batport/zrun.py = BAT/engine p1m + rev25 + v72 yan motorları) BAT'ta doğrulandı: 10.926 $ / 2.920 işlem / PF 1,547 / MaxDD 299 (belgelenen motor 10.884, TV 11.018).
 - ZEC, BAT ayarları değişmeden: balina tam −960 $ (PF 0,96, MaxDD 2.147) · balina TV −446 $ · balinasız −240 $ (PF 0,99, MaxDD 1.486); 2025 −460…−901, 2026 −406…−680 → RET.
 - Sonuç: PEPE (momentum, 5 dk) ve BAT (24 s dönüş konsorsiyumu) mimarileri ZEC'e taşınmıyor. ZEC: dakika–saat ölçeğinde dönüş (1 dk orkestra), çok günlük ölçekte güçlü trend (4 s Donchian tek başına PF 2,4).
+
+## 2026-11-25 — TV V2.8 + AVCI (1 s çapraz OI haritası ile yeniden giriş)
+- TV V2.8 (2023-02-02 → 2026-11-25): 1.379 işlem, net 4.332 $, PF 1,418, MaxDD 461 / 493 çubuk içi; yıllar 121 / 1.060 / 2.051 / 1.101. Pozisyonda süre %87.
+- AVCI (flat iken 1 s fiyat×OI birikimi z yönünde giriş; ZEC ve ZEC×BTC OI; 1/4/12 s; z 0,5/1; 4 s trend filtresi; tutma 60/240): en iyi 8.402 (baz 8.516) → hepsi RET.
+- Aylık TV net ~ ZEC ortalama günlük hareket korelasyonu 0,73: sakin aylar (%2,4) 19,6 $/ay, %44 pozitif; oynak aylar (%5,9) 219 $/ay, %80 pozitif; hareket başına kazanç da sakin aylarda 5 kat düşük.
