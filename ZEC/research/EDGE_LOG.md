@@ -158,3 +158,14 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - TV V2.8 (2023-02-02 → 2026-11-25): 1.379 işlem, net 4.332 $, PF 1,418, MaxDD 461 / 493 çubuk içi; yıllar 121 / 1.060 / 2.051 / 1.101. Pozisyonda süre %87.
 - AVCI (flat iken 1 s fiyat×OI birikimi z yönünde giriş; ZEC ve ZEC×BTC OI; 1/4/12 s; z 0,5/1; 4 s trend filtresi; tutma 60/240): en iyi 8.402 (baz 8.516) → hepsi RET.
 - Aylık TV net ~ ZEC ortalama günlük hareket korelasyonu 0,73: sakin aylar (%2,4) 19,6 $/ay, %44 pozitif; oynak aylar (%5,9) 219 $/ay, %80 pozitif; hareket başına kazanç da sakin aylarda 5 kat düşük.
+
+## 2026-11-25 — BÜYÜK AV (29.194 varyant) → V2.9 KABUL
+- Flat dolgu (V2.8 flat iken yan motor; 11 aile, 20.682 varyant): IS ilk 100'ün yalnız %15'i OOS artı → RET (gürültü).
+- Pozisyon içi katman: karşı pozisyon (96) %2 artı, OI tükeniş (144) %0 → RET. TRIM (RSI uçta kâr al / geri gir) 7.984 varyant: RSI21 %93, RSI14 %75 artı; RSI7 ve z tetikleri hepsi eksi.
+  Sırt: RSI10/94 ≈ RSI14/90 ≈ RSI21/86 (eşik uzunlukla birlikte kayıyor = plato).
+- Uçta TERS (flat yerine %2 stoplu kısa ters): 288 varyantın %94'ü artı, %74'ü iki yarıda artı.
+- SEÇİLEN (IS en iyi): RSI10 ≥ 94 / ≤ 6 → ters, geri RSI 70/30 · 240 bar · %3 devam, ters stop %2:
+  +600 $ (+%7,1; 8.461 → 9.062) · IS/OOS +380/+221 · sakin aylar +14 · son 300 g +69 · MaxDD 457 → 391 · DD P95/P99 270/359 → 254/343 · Sharpe 2,29 → 2,47
+  komşular +146…+674 · monkey p 0,000 · MC P5 +202 · 12 ay ileri DD P99 705 → 660 · DSR (tüm strateji) 0,999 · sonraki açılışta icra +576 · çift maliyet +326 (MaxDD 469 → 502)
+  UYARI: sinyal 1 bar geç +103, 2 bar geç −54 (dakikalık etki). Ek kazanç akışında DSR 0 (küçük etki / çok deneme).
+- Pine V2.9: gölge orkestra (sPos/sEp/sStp) + gerçek emir katmanı.
