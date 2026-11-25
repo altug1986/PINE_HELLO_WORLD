@@ -213,3 +213,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Baz pozisyondayken ters mikro (+ seçmeli FLAT'ta ortalamaya dönüş) 4.032 varyant: medyan +1.030 mikro işlem, mikro PF medyan 0,71, PF>1 %8,8; medyan −1.362 $, en iyi +27 $, iki yarı %0,3. Eşik V2.9'un RSI10 ≥ 94'üne yaklaştıkça zarar sıfıra iniyor.
 - Baz FLAT iken momentum mikro 2.016 varyant: medyan 248 işlem, PF 0,75; medyan −162 $, en iyi +101 $ (z240 ≥ 2,5 + OI15 ≤ −%1; 142 işlem, PF 1,32, IS +44 / OOS +57, MaxDD +2). Kapı +544 $; geçmiyor.
 - Karar: V2.9 kalıyor. Dosya: engine/mikro.py, engine/mikro2.py, research/MIKRO_KATMAN_1DK.csv.gz.
+
+## 2026-11-25 — Devasa aday işlem (×1…×200) + öğrenilen filtre / meta-etiketleme (RET)
+- Aday: V2.9'un 2.502 işleminin 1/10/20/50/100/200 katı; eşit aralıklı barlarda long + short, 4 s ve 16 s tut, maliyet dahil (2.504 → 515.146 aday). 32 nedensel özellik (ZEC getiri/z/RSI 15 dk–24 s, BTC/XMR getiri, OI değişimi, fonlama, baz farkı, hacim, ATR, oynaklık rejimi, 4 s ADX, 1 s CHOP, ara trend, V2.9 baz yönü/yaşı/kârı; yönlüler aday yönüyle çarpılı). Sığ gradient boosting (derinlik 3, yaprak ≥ %1), yarıda eğit / öbür yarıda test, tutma süresi kadar arınma; V2.9'a çapraz uygulama.
+- Bağımsız örnek tavanı: 4 s'te ~12.900, 16 s'te ~3.200 (bar ÷ tutma). ×20–50 sonrası öğrenme artmıyor.
+- Aday düzeyi: sıralama korelasyonu 0,01–0,03; geçmişten öğren → 2. yarı: en iyi %10 aday başına +0,1…+0,3 $ (4 s; t 0,5–2,3), +0,2…+1,1 $ (16 s; t 0,5–1,4). Gidiş-dönüş maliyeti ~0,4 $.
+- V2.9 giriş vetosu (en kötü %10/%20): her çarpanda −760 … −3.600 $ (atılan işlemler kârlı). FLAT dolgu (üst %2/5/10): çoğu −300 … −1.600 $; tek artı ×1 16 s (+250…+400, en az örnek, model ρ ≈ 0 → şans).
+- Karar: V2.9 kalıyor. Dosya: engine/buyuk.py, research/DEVASA_ADAY_FILTRE.csv.
