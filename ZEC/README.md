@@ -100,5 +100,7 @@ Net ≥ baz × 1,06 **ve** MaxDD, Calmar, DD P95/P98/P99, SC4 kötüleşmez · �
 
 | Sürüm | Kaynak | Net $ | İşlem | PF | MaxDD (MTM) | SC4 | Not |
 |---|---|---|---|---|---|---|---|
+| R3-1dk | motor | 3.126 (%625) | 721 | 1,61 | 283 (P99 260) | 0,029 | 1 dk, R2 kuralları + canlı sürüş öncelikli seçim (oy ≥3, SL 11 ATR, 960 bar) + sıçrama bekçisi; balina/top trader verisi gerekir (TV'de yok) |
+| R2 | motor | 4.221 (%844) | 1.778 | 1,31 | 443 | 0,026 | 2 dk rejim oyu + mikro OI short oyu |
 | V0.2 | motor | 4.448 (%890) | 825 | 1,56 | 674 (P99 620) | 0,009 | TREND 4 sa Donchian(10) + 4×ATR4s iz + TAKTİK 6 aşırı oy ≥3; IS 1.108 / OOS 3.341; komşu 108/108 pozitif (medyan 2.986); `pine/ZEC_2M_V0.2.pine` |
 | V0.1 | motor | 1.367 (%273) | 1.037 | 1,30 | 291 (P99 236) | 0,011 | SPIKE FADE çift yön; long +1.549 / short −182; IS 915 / OOS 452; `pine/ZEC_2M_V0.1.pine` |

@@ -1,0 +1,44 @@
+"""1 dk: R2 + SIÇRAMA BEKÇİSİ + SIÇRAMA LONG motoru."""
+import numpy as np
+from numba import njit
+from z01 import FEE, TICK, CAP
+
+
+@njit(cache=True)
+def sim7(o, h, l, c, atr, aL, aS, ats, atH, bL, bts, btrl, btH, spk, blkN):
+    """A = R2 (öncelikli; SL ats·ATR, süre atH). B = sıçrama long (yalnız boşken; ilk SL bts·ATR, iz tepe − btrl·ATR, süre btH).
+    spk[i] True → açık SHORT bar kapanışında ANINDA kapanır ve blkN bar yeni short açılmaz (sıçrama bekçisi)."""
+    n = len(c); eq = np.zeros(n); real = 0.0; pos = 0; own = 0; ep = 0.0; q = 0.0; stop = 0.0; ei = 0; ti = 0; mae = 0.0; pk = 0.0; noS = -1
+    T = np.zeros((n // 2 + 10, 9)); nt = 0
+    for i in range(1, n):
+        if pos != 0:
+            if (pos == 1 and l[i] <= stop) or (pos == -1 and h[i] >= stop):
+                xp = (min(o[i], stop) - TICK) if pos == 1 else (max(o[i], stop) + TICK)
+                pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+                mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+                T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; T[nt, 8] = 0; nt += 1
+                pos = 0; own = 0
+            else:
+                mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+        if spk[i]:
+            noS = i + blkN
+        wA = 1 if aL[i] else (-1 if (aS[i] and i > noS) else 0); wB = 1 if bL[i] else 0
+        guard = pos == -1 and spk[i]
+        tout = pos != 0 and ((own == 1 and i - ti >= atH) or (own == 2 and i - ti >= btH))
+        ex = pos != 0 and (guard or (wA != 0 and wA != pos) or tout)
+        blk = pos if (tout and (wA == pos or wB == pos)) else 0
+        if ex:
+            xp = c[i] - TICK * pos; pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+            T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; T[nt, 8] = 1 if guard else 0; nt += 1
+            pos = 0; own = 0
+        if pos != 0 and own == 2 and wA == pos:
+            own = 1; ti = i; s2 = c[i] - ats * atr[i]; stop = max(stop, s2)
+        if pos == 0 and not np.isnan(atr[i]):
+            if wA != 0 and wA != blk:
+                pos = wA; own = 1; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; ti = i; mae = 0.0; stop = ep - pos * ats * atr[i]
+            elif wB != 0 and wB != blk:
+                pos = 1; own = 2; ep = c[i] + TICK; q = CAP / ep; ei = i; ti = i; mae = 0.0; pk = c[i]; stop = ep - bts * atr[i]
+        if pos == 1 and own == 2:
+            pk = max(pk, c[i]); stop = max(stop, pk - btrl * atr[i])
+        eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
+    return eq, T[:nt]

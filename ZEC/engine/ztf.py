@@ -18,7 +18,7 @@ def htf(B, tf, rule, fn):
     return v.reindex(B.index + pd.Timedelta(f'{tf}min') - pd.Timedelta('1ms'), method='ffill').values
 
 
-def build(tf, src='/home/claude/master/'):
+def build(tf, src='/home/claude/master/', thr=25.0):
     s = 2 / tf; r = np.sqrt(s); S = lambda k: max(1, int(round(k * s)))
     B = load(tf, src=src); o, h, l, c, v = (B[k].values.astype(float) for k in ('open', 'high', 'low', 'close', 'volume'))
     n = len(c); c1 = np.r_[np.nan, c[:-1]]
@@ -68,9 +68,9 @@ def build(tf, src='/home/claude/master/'):
             for lab, val in (('UP', 1), ('DN', -1), ('YAT', 0)):
                 m = (vv == side) & (RG == val)
                 if m[:mid].sum() < 200 * s: continue
-                if np.nanmean((f240 * side)[:mid][m[:mid]]) >= 25:                     # IS seçimi
+                if np.nanmean((f240 * side)[:mid][m[:mid]]) >= thr:                    # IS seçimi
                     rules.append(f'{k}{"L" if side > 0 else "S"}@{lab}'); (L if side > 0 else Sh)[m] += 1
-    return dict(B=B, o=o, h=h, l=l, c=c, atr=atr, s=s, r=r, S=S, L=L, Sh=Sh, rules=rules, mid=mid, RG=RG, n=n)
+    return dict(B=B, o=o, h=h, l=l, c=c, atr=atr, s=s, r=r, S=S, L=L, Sh=Sh, rules=rules, mid=mid, RG=RG, n=n, V=V, f240=f240)
 
 
 def run(D, kL=2, kS=3, ts=8.0, tH=480):
