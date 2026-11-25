@@ -169,3 +169,13 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
   komşular +146…+674 · monkey p 0,000 · MC P5 +202 · 12 ay ileri DD P99 705 → 660 · DSR (tüm strateji) 0,999 · sonraki açılışta icra +576 · çift maliyet +326 (MaxDD 469 → 502)
   UYARI: sinyal 1 bar geç +103, 2 bar geç −54 (dakikalık etki). Ek kazanç akışında DSR 0 (küçük etki / çok deneme).
 - Pine V2.9: gölge orkestra (sPos/sEp/sStp) + gerçek emir katmanı.
+
+## 2026-11-25 akşam — TV V2.9 + PORTFÖY KATKISI (SC4) odaklı tarama
+- TV V2.9 birleşik (2020-02 → 2026-11): 2.867 işlem, 9.478 $, PF 1,458 · yakın pencere (2023-02 →) 4.536 $ (V2.8 TV 4.332), MaxDD 471/503.
+- SC4 değerlendirici (memory risk-scorecard tanımı) portföyde doğrulandı: 8,84 (ref 8,91), Calmar 57,1, MaxDD %2,75.
+- V2.9 + 200 $ → portföy ΔSC4: seçim (2023-05→2025-02) +0,29 · doğrulama (2025-02→2026-11) −1,41, ΔMaxDD% +0,49, aylık kor +0,31.
+- Son 300 g portföy çukurları = XMR düşüşleri (ort. −%3,4); ZEC kaybettiği çukurlarda %54 long.
+- XMR göreli zayıflık motoru (162) + alt risk-off bekçisi (18): doğrulama ΔSC4 en iyi −1,27 → RET.
+- Risk azaltıcılar (oynaklık kapısı, azami tutma, günlük zarar, özsermaye kesicisi; 31): doğrulama ΔSC4 en iyi −0,45 (kâr ~0) → RET.
+- Bağımsız XMR-zayıf ZEC short hedge (432): seçimde 200 / doğrulamada 50 varyant ΔSC4 > 0, ama hepsinin kendi neti −900…−2.200 $, MaxDD 1.100+ → RET.
+- V2.9 nominal duyarlılığı ΔSC4 (seçim/doğrulama): 25 $ +0,22/−0,01 · 50 $ +0,45/−0,04 · 100 $ +0,56/−0,52 · 200 $ +0,29/−1,41.
