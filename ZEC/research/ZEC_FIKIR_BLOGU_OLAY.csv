@@ -1,0 +1,9 @@
+olay,adet,4s bps 1/2,4s isabet,12s bps 1/2,12s isabet,24s bps 1/2,24s isabet,adet 1/2
+E1 long tasfiyesi: 1 s fiyat z ≤ −3 ve OI 1 s ≤ −%3 → long (dönüş),675,+31/+65,58%,+8/+123,57%,+25/+235,58%,257/418
+E2 short sıkışması: 1 s fiyat z ≥ +3 ve OI 1 s ≤ −%3 → long (devam),50,+18/+182,54%,+4/+523,66%,+91/+644,62%,24/26
+E3 short sıkışması → short (dönüş),50,-18/-182,46%,-4/-523,34%,-91/-644,38%,24/26
+"E4 yeni short yığılması: fiyat 4 s ≥ +%5, funding < 0, OI 24 s ≥ +%10 → long (sıkışma yakıtı)",131,-34/+102,50%,-108/+237,54%,-19/+411,61%,22/109
+"E5 kalabalık long: fiyat 4 s ≤ −%5, funding > %0,02, OI 24 s ≥ +%10 → short (long tasfiye devamı)",6,-179/-62,33%,-44/-89,33%,-65/+135,33%,1/5
+E6 vadeli öncülüklü yükseliş: 4 s ≥ +%5 ve baz farkı 4 s ≥ +15 bps → short (dönüş),759,+27/-56,51%,-56/-112,48%,-45/-218,49%,338/421
+E7 spot öncülüklü yükseliş: 4 s ≥ +%5 ve baz farkı 4 s ≤ 0 → long (devam),1003,-28/+45,46%,+13/+110,50%,-11/+233,52%,446/557
+E8 spot öncülüklü düşüş: 4 s ≤ −%5 ve baz farkı 4 s ≥ 0 → short (devam),915,-31/-53,43%,-14/-102,46%,-80/-159,46%,459/456
