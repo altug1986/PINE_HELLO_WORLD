@@ -120,3 +120,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Kâr 2023+ dağılımı: 2023-01→2024-06 +655 · 2024-07→2025-08 +231 · 2025-09→12 rallisi +2.322 · 2026 +836. Oynaklığa bölünmüş eğri de lineer değil (R² 0,84→0,88).
 - Kurallar 2023–24'ten seçilince: seçim içi +2.470…3.050, ileri 2025–26 −287…−1.948 → RET. 2021–23 seçimi (V2.7) ileri 2025–26 +3.024 ile en iyi kalıyor.
 - Portföy akış çukurları (10 dk zigzag 40 $): V2.7 son 300 g −368 $ (çukurların %42'si pozitif), son 90 g +64 $.
+
+## 2026-11-25 — ETH ADX + ETH balina vekili oyları (RET)
+- ETH verisi: yalnız GitHub data/candidates_1h/ETHUSDT_1h (OHLCV). ETH balina işlemi verisi yok (TV'de de yok) → vekil: 1 s hacim z ≥ 2,5 × mum yönü.
+- En iyi: ETH ADX 4 s tüm motorlarda: net 8.784 (+%5,1), 2023+ R² 0,83→0,92, işlem +%3; ama ikinci yarı 3.870→3.623, MaxDD 413→657 (2025-04→09), 2023+ DD P99 366→530 → eşik ve kırmızı çizgi geçmedi.
+- Balina vekili: net −86…−425, işlem +%0–4 → RET. Hepsi birlikte: işlem +%20, ikinci yarı 2.158 → aşırı uyum.
