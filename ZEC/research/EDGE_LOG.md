@@ -194,3 +194,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Melez (trendde FLAT, dışında TERS; 24 varyant): ara trend durumu en iyi +0,3 (IS +28, OOS −28) → gürültü; EMA200 4 s rejimi −152 … −214.
 - Trendde kâr ≥ %3/5/8 → FLAT, geri çekilmede yeniden giriş (12): −919 … −1.710 (OOS −717 … −1.211). Trend gövdesini kesiyor, geri giriş geç ve pahalı.
 - Karar: V2.9 kalıyor. Uçtaki TERS zaten kârı alıyor + geri çekilmeden kazanıyor + baz yöne dönüyor; FLAT yalnızca geri çekilme kazancını atıyor. Dosya: engine/trimtrend.py, research/TREND_FLAT_KARAL_1DK.csv.
+
+## 2026-11-25 — Yatay mod: yatayda "kaymak" noktada çık (short dipten dönüş / long tepeden dönüş) → yeniden gir (RET)
+- Yatay tespiti: ADX 1 s/4 s < 20/25, CHOP 15 dk/1 s > 55/61,8 (+ her zaman kontrolü). Çıkış: kanal 60/240 dk dip-tepe bölgesi + 0,5/1/2 ATR dönüş, RSI14/30/60 25-30 geri dönüş; büyük ölçekte 15 dk/1 s RSI14 ve 1 s kanal 24/48. Yeniden giriş: kanalın %50/%75'ine geri çekilme, %1/2/4 devam, süre, yatay bitişi. FLAT ya da ters; kâr şartı yok/0/%2. V2.9 uç TERS öncelikli.
+- 1 dk ölçek 11.664 varyant: iki yarıda artı %0,3, medyan −2.618 $, en iyi +91 $ (ikinci yarı −94). 15 dk/1 s ölçek 4.320: iki yarıda artı %0, medyan −1.085 $, en iyi +27 $. +%6 kapısını geçen 0.
+- Olay çalışması (CHOP 1 s > 55 yatayı, baz yönde ortalama hareket 1/4/12/24 s): rastgele an +0,03/+0,09/+0,23/+0,46 %; kanal240 dönüşü +0,02/+0,05/+0,21/+0,43; RSI30 25 dönüşü +0,23/+0,44/+0,65/+0,75; 1 s kanal dönüşü +0,02/+0,13/+0,42/+0,61. Sinyal sonrası fiyat baz yönde gitmeye devam ediyor → çıkmak sürüklenmeyi kaçırıyor, geri giriş daha kötü fiyattan.
+- Karar: V2.9 kalıyor. Dosya: engine/yatay.py, engine/yatay2.py, research/YATAY_MOD_1DK.csv.gz.
