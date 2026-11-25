@@ -148,3 +148,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Port doğrulama (PEPE/port/pepeport.py): PEPE'de TV V11.7 1.753 işlem / 9.763 $ ↔ port 1.731 / 9.616 $ (−%1,5), giriş eşleşmesi %96,1.
 - ZEC 5m, PEPE ayarları değişmeden: 2.636 işlem, net +190 $, PF 1,01, MaxDD 1.650, aylık pozitif %54 → ERR ≈ 0 (RET).
 - ZEC/PEPE 5 dk oynaklık oranı 0,92 (benzer). Eşikler × 0,69 / 0,92 / 1,16: −947 / +621 / −1.567 $ → sorun oynaklık değil, ZEC'te 5 dk momentum sürekliliği yok (ortalamaya dönüşçü).
+
+## 2026-11-25 — BAT 5M KONSORSİYUM V7.2 → ZEC 5m (ERR taşınabilirlik)
+- Bileşim (ZEC/engine/batport/zrun.py = BAT/engine p1m + rev25 + v72 yan motorları) BAT'ta doğrulandı: 10.926 $ / 2.920 işlem / PF 1,547 / MaxDD 299 (belgelenen motor 10.884, TV 11.018).
+- ZEC, BAT ayarları değişmeden: balina tam −960 $ (PF 0,96, MaxDD 2.147) · balina TV −446 $ · balinasız −240 $ (PF 0,99, MaxDD 1.486); 2025 −460…−901, 2026 −406…−680 → RET.
+- Sonuç: PEPE (momentum, 5 dk) ve BAT (24 s dönüş konsorsiyumu) mimarileri ZEC'e taşınmıyor. ZEC: dakika–saat ölçeğinde dönüş (1 dk orkestra), çok günlük ölçekte güçlü trend (4 s Donchian tek başına PF 2,4).
