@@ -187,3 +187,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Sualtı anatomisi: büyük çukurları E0 (64 saat tutan, en öncelikli) açıyor: 2026-02/03 −311, 2025-01/02 −138, 2024-04/07 −126, 2021 −150/−141.
 - Düşüş trendinde long yasağı (16): hepsi kötü (7.600–8.150). Zararda zaman kesici (E0 / tümü; 40): IS iyileşen 0.
 - E0 tam motor: tutma 960/1920/2880 → 6.825/7.332/8.613; stop 14/20/40×ATR → 8.268/8.312/8.732; E0 kapalı → 4.234 (E0 kârın 6.200 $'ı). Mevcut ayar (3840 / 28×ATR) yerel en iyi.
+
+## 2026-11-25 — Devam eden trendde kârı FLAT ile al → yeniden gir (RET)
+- Motor (500 $, 1 dk, V2.8 gölge yolu üstünde katman): V2.9 uçta TERS 9.061,9 / IS 4.825 / OOS 4.237 / MaxDD 391 / Ulcer 26,1.
+- Her zaman FLAT + yeniden giriş: 8.846,9 (−215; IS −109, OOS −106), MaxDD 401.
+- Melez (trendde FLAT, dışında TERS; 24 varyant): ara trend durumu en iyi +0,3 (IS +28, OOS −28) → gürültü; EMA200 4 s rejimi −152 … −214.
+- Trendde kâr ≥ %3/5/8 → FLAT, geri çekilmede yeniden giriş (12): −919 … −1.710 (OOS −717 … −1.211). Trend gövdesini kesiyor, geri giriş geç ve pahalı.
+- Karar: V2.9 kalıyor. Uçtaki TERS zaten kârı alıyor + geri çekilmeden kazanıyor + baz yöne dönüyor; FLAT yalnızca geri çekilme kazancını atıyor. Dosya: engine/trimtrend.py, research/TREND_FLAT_KARAL_1DK.csv.
