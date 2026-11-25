@@ -125,3 +125,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - ETH verisi: yalnız GitHub data/candidates_1h/ETHUSDT_1h (OHLCV). ETH balina işlemi verisi yok (TV'de de yok) → vekil: 1 s hacim z ≥ 2,5 × mum yönü.
 - En iyi: ETH ADX 4 s tüm motorlarda: net 8.784 (+%5,1), 2023+ R² 0,83→0,92, işlem +%3; ama ikinci yarı 3.870→3.623, MaxDD 413→657 (2025-04→09), 2023+ DD P99 366→530 → eşik ve kırmızı çizgi geçmedi.
 - Balina vekili: net −86…−425, işlem +%0–4 → RET. Hepsi birlikte: işlem +%20, ikinci yarı 2.158 → aşırı uyum.
+
+## 2026-11-25 — Baskı/ulaşamama, Failed Pressure Reversal, ETH veto, beta ayrışması (hepsi RET)
+- ETH 4 s ADX veto (≥20/25/30): net 6.036–6.840, MaxDD 581–597 → RET.
+- Gerçek giriş + 6 bar ulaşamazsa çevir: 15 varyant, net 1.338–7.704 → RET.
+- Arşiv Fikir 2 (gölge test, ulaşamadı → ters gir; ulaştı → gir/girme): 36/36 varyantta ters işlemler −616…−7.495 $ → RET.
+- FPR olay çalışması (44.334 sanal sinyal; N 3/6/9/12; mesafe %0,15–0,75 ve 0,25–1 ATR; karşı kırılım; OI artışı/azalışı; 60/240 bar): 224 varyantın 0'ı geçti, hepsi iki yarıda negatif (−17…−73 bps). Ayna: ulaşamadı+karşı kırılım sonrası ORİJİNAL yön 240 bar ≈ IS +56 / OOS +6 bps → ZEC ortalamaya dönüşçü; başarısızlık çöküş değil daha iyi giriş fiyatı.
+- Beta-düzeltilmiş ayrışma (BTC/ETH/XMR/piyasa, 4/24 s, z 2/2,5): ortalamaya dönüş 2021–23'te çalışıyor, 2024–26'da çoğu negatif; 32'de 1 geçen (XMR 24s/4s z2,5) komşusuz → şans.
