@@ -62,7 +62,7 @@ float dz = nz(math.log(close / close[1]))
 float db = nz(math.log(btc1 / btc1[1]))
 float beta = nz(ta.sma(dz * db, 1440) / ta.sma(db * db, 1440))
 float eR = dz - beta * db
-float q = nz(math.sum(eR, 60) / (sdS(eR, 1440) * math.sqrt(60))   // [REV-04])
+float q = nz(math.sum(eR, 60) / (sdS(eR, 1440) * math.sqrt(60)))   // [REV-04]
 int vP15 = q > 2 ? 1 : q < -2 ? -1 : 0
 // [REV-02] OI oyları: 60 dk OI % değişimi ve fiyat yönü
 float oi = request.security(ZOI, "5", close[1], lookahead = barmerge.lookahead_on)
