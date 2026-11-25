@@ -49,3 +49,15 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Sabit 500 $ girişte kârı büyüten kaldıraç trendi koşturmak: giriş başına getiri sınırsız, çıkış-tekrar giriş bunu sıfırlar. Taktik dip alımı trend çekirdeğine erken giriş fiyatı sağlıyor (trend kârı 2.475 → 4.246).
 - Bilgi tablosu (h60 IS/OOS bps): spike +16,8/+6,0 · basis +10,9/+8,0 · global L/S (h240) +18/+18 · 4 s trend (h240) +3/+13 · 2 dk trend ≈0/negatif · taker akışı ve BTC ters yönde ~2 bps (< maliyet 8,3).
 - ZEC 2 dk'da fiyat yalnızca aşırı hareketin dönüşünde kazandırıyor; kırılım/itki takibi maliyetin altında. Long tarafı (dump fade) sağlam, short tarafı (pump fade) 2021–26 boğasında kaybettiriyor.
+
+### 2026-11-25 — Stres bölgeleri turu (1 dk, araştırma motoru, TV'de doğrulanmadı)
+| Yol | Sonuç | Karar |
+|---|---|---|
+| R5 stres teşhisi | son 2 ay −213 $, son 3 hafta −128, 23 Kasım +1, zayıf dönem +166 | sorun gerçek |
+| IGNITION (kırılım + akış + sıkışma, 108 ayar) | iki yarıda pozitif 0/108 | RED |
+| Uyarlamalı oy ağırlığı (kayan gerçekleşen IC, 432 koşu) | en iyi net 3.276 (son 2 ay +85, son 3 hafta −24); dört pencere pozitif tek aile: net 2.551, son 2 ay +113, zayıf +110, son 3 hafta −60 | bazı geçemedi; bir bölgeyi düzeltince diğeri bozuluyor |
+| Rejimde taşı (4s ADX rejimi sürdükçe süre çıkışı yok, 4s ATR izi; 162 koşu) | net 6.374 ama ilk 3 işlem kârın %52'si, MaxDD 917; dengeli: net 4.924, son 3 hafta +177, son 2 ay −8, zayıf +251, MaxDD 713 | MaxDD kırmızı çizgisi aşılıyor → RED (dengeli varyant izlemede) |
+| Çok hızlı alt motor (aynı 500 $ 6'ya bölünür, IS açgözlü seçim) | net 2.265, MaxDD 163, DD P98 91, R² 0.96, son 2 ay −60 | DD çok iyi, net yarıya iniyor; %2000'e yol değil |
+| Video dersleri (kayma stresi %0,08 + 3 tick, en uzun yatay kalma) | R5: net 4.211 → 3.169 (−%25), en uzun yatay 404 gün (2025-10-13'ten bugüne sürüyor), stresle 963 gün; dengeli taşı 751 gün; çoklu motor 378 gün | asıl sorun son 3 hafta değil: tüm adaylar 2025-10'dan beri yatay |
+- Ders: hedef pencereyi (son 2 ay / 23 Kasım) zorla düzeltmek zayıf dönemi ve iki yarı dengesini bozuyor; tarih hedefli optimizasyon aşırı uyum.
+- Ders: işlem başı kenar ~47 bps; %2000 için 1.750 işlemde ~114 bps gerekiyor (2,4×). Ortalama alma (çoklu motor) neti yükseltemez, yalnız DD'yi düşürür.
