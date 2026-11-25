@@ -200,3 +200,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - 1 dk ölçek 11.664 varyant: iki yarıda artı %0,3, medyan −2.618 $, en iyi +91 $ (ikinci yarı −94). 15 dk/1 s ölçek 4.320: iki yarıda artı %0, medyan −1.085 $, en iyi +27 $. +%6 kapısını geçen 0.
 - Olay çalışması (CHOP 1 s > 55 yatayı, baz yönde ortalama hareket 1/4/12/24 s): rastgele an +0,03/+0,09/+0,23/+0,46 %; kanal240 dönüşü +0,02/+0,05/+0,21/+0,43; RSI30 25 dönüşü +0,23/+0,44/+0,65/+0,75; 1 s kanal dönüşü +0,02/+0,13/+0,42/+0,61. Sinyal sonrası fiyat baz yönde gitmeye devam ediyor → çıkmak sürüklenmeyi kaçırıyor, geri giriş daha kötü fiyattan.
 - Karar: V2.9 kalıyor. Dosya: engine/yatay.py, engine/yatay2.py, research/YATAY_MOD_1DK.csv.gz.
+
+## 2026-11-25 — PF ve Super-Calmar filtreleri (RET)
+- Filtre sanal (filtresiz) V2.9 akışından, nedensel: kayan PF (son 10–100 işlem / son 7–90 gün, eşik 0,7–1,5), kayan Calmar (7–90 gün) ve Super-Calmar (14–90 gün; yıllık / (MaxDD + DD P95) × R², 30 dk MTM, günlük güncelleme), motor bazlı PF (E0–E3, POMPA, uç TERS), yön/short PF. Uygulama: kötüde kapat + hemen katıl / kötüde kapat + yeni girişi bekle / açığa dokunma, yeni girişi kes; ters yön kontrolü. 1.098 varyant.
+- Otokorelasyon: 20 işlemlik blok net kor +0,23, 50: +0,18, 100: −0,08; ay +0,27. Kötü 1/3 bloktan sonra ortalama +50 $ / 20 işlem (genel +72 $) → kesilen işlemler hâlâ artı beklentili.
+- Sonuç: iki yarıda artı 0; Calmar artıp iki yarı tutan 0; SC4 artıran 0. En iyi PF (90 gün ≥ 0,7) −21 $; ilk yarı seçimi (90 gün ≥ 0,8) ikinci yarı −360 $, MaxDD 424; en iyi Super-Calmar (60 gün ≥ −0,5) −976 $, SC4 0,074 → 0,049.
+- Tek risk iyileştiren: short PF son 5 < 0,9 → short açma: MaxDD 391→351, DD P99 343→278, Calmar 3,93→4,12; net −536 (−%5,9), ilk yarı −584 / ikinci +48, SC4 0,063. Kapı geçmiyor.
+- Karar: V2.9 kalıyor. Dosya: engine/pffilt*.py, research/PF_SUPERCALMAR_FILTRE_1DK.csv.
