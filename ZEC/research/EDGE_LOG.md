@@ -83,3 +83,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - ÇEVİK-1 (15/120/kL2 kS3/ts24/tH480): net 5.624, 1.722 işlem, MaxDD 448, DD P98 335, 2024 ortası DD 127 (C 253), son 30 gün +87, ort. tutma 10,5 sa (C 19 sa), monkey ✓, 12 ay DD P95/P99 412/556, gecikme 1/2 sa −%13/−%17.
 - ÇEVİK-2 (kS4): net 5.391, 1.520 işlem, MaxDD 347, DD P98 245, 2024 DD 143, son 30 +61, 12 ay DD P99 490, 12 ay zarar %0,3, gecikme −%7/−%13; short ≈ 0.
 - Portföye 250 $ eklenince: tüm ZEC adayları portföy MaxDD'sini artırıyor (138 → C 149 / ÇEVİK-2 164 / ÇEVİK-1 169 / A 230); en az zarar veren AKRAN-C (zararlı dönemleri portföyle çakışmıyor).
+
+### 2026-11-25 — 8.000 üstü + Kasım (canlı 4.600 portföyü, general-quant-algo-code-center@70b1f4f, regulator_data_20261124.json, limit giriş satırları)
+- Portföy: Ekim +541,9 · Kasım (1→24) +71,6 · MaxDD 121 (30 dk). ZEC fiyatı 1 Kas 1.249 → 23 Kas 776 (−%38).
+- Rejime XMR 24 sa yön biti eklendi (A×G×XMR = 4s ADX × BTC kor × ZEC sıcak × ATR kor × günlük EMA20 × XMR 24 sa). 6 rejim × 2.304 ayar.
+- 8.000 üstü + iki yarı pozitif: 5 ayar. SEÇİLEN X1 (A×G×XMR, 25 bps / 8 sa ufuk / kL2 kS3 / SL 32 ATR / 16 sa): net 8.096, 1.799 işlem, MaxDD 432, DD P95/P99 252/328, Calmar 3,18, monkey ✓, MC P5 5.286, 12 ay DD P95/P99 504/665, stres 6.693, gecikme 1/2 sa 7.164/7.418, short +1.759. Kasım −67.
+- Kasım'da kazanan en iyi aday H1 (A×G, 10/480/3/3/24/960): net 7.923, Kasım +162, ama MaxDD 635 ve 1 sa gecikmede −%23.
+- Ekim seviyesine Kasım için ZEC'in 200 $ nominalle Kasım'da ~+470 yapması gerekir (500 $'da ~+1.175) → ulaşılamaz; zorlamak tarih hedefli aşırı uyum.
