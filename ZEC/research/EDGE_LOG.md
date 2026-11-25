@@ -137,3 +137,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Tek başına en iyi: Donchian 100/50 yalnız long iz 8×ATR4s: 42 işlem, +4.409 $, PF 4,69, MaxDD 2.371; 2025-09-24→11-28 tek işlem 58,6→471,6 = +3.523 $.
 - V2.7 ile tek birim (trend öncelikli): 8.832 $ (+%5,6), PF 1,68, ilk/ikinci yarı 3.579/5.253, 2025 +3.712, son 300 g +1.180; MaxDD 413 → 2.443, trend işlem MAE max %19,5 → eşik ve MaxDD kırmızı çizgisi geçmedi.
 - 55/20 yalnız long: 7.874 / MaxDD 827. İki yönlü trend her varyantta daha kötü (short trendler ZEC'te çalışmıyor).
+
+## 2026-11-25 — ARA TREND motoru (kâr al + yeniden giriş, her giriş 500 $)
+- Tek başına EMA200 rejim + 55/20 kırılım + kâr %25 + iz 6×ATR4s: 80 işlem, +2.132 $, PF 2,4, MaxDD 337, en büyük işlem payı %8,3, ralli hariç +1.005; yıllar 661/−5/−198/184/1.166/323.
+- V2.7 ile tek birim (trend öncelikli): 8.042 (−%3,8), MaxDD 413 — trend +4.465 getirirken orkestradan ~4.800 eksiltiyor → RET.
+- Trend en alt öncelik: tasarım hatası (her barda yeniden giriş çırpınması) → geçersiz.
+- Trend durumu yalnız short vetosu: kâr%15 → 8.516 (+%1,9), MaxDD 457, ikinci yarı 4.071, son 300 g 1.083; kâr%25 → 9.036 (+%8,1) ama MaxDD 791 → eşik/kırmızı çizgi geçmedi.

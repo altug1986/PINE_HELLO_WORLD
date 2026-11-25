@@ -1,31 +1,28 @@
-import sys, itertools, json; sys.path.insert(0, '/home/claude/pine_hello_world/ZEC/engine')
-import numpy as np, pandas as pd
-from zec_data import load; import z01, z02
-B = load(2, src='/home/claude/master/'); F = z01.prep(B); n = len(B)
-mid = np.searchsorted(B.index.values, (B.index[0] + (B.index[-1] - B.index[0]) / 2).to_datetime64())
-def htfx(rule, fn): return z02.htf(B, rule, fn)
-def atr4(H, k=14):
-    c1 = H.close.shift(1); tr = np.maximum(H.high - H.low, np.maximum((H.high - c1).abs(), (H.low - c1).abs()))
-    return tr.ewm(alpha=1 / k, adjust=False).mean().values
-A4 = np.nan_to_num(htfx('4h', atr4), nan=np.nan); A1 = htfx('1D', atr4)
-def don_entry(rule, N):
-    hh = htfx(rule, lambda H: H.high.rolling(N).max().values); ll = htfx(rule, lambda H: H.low.rolling(N).min().values)
-    c = F['c']; return (c > hh), (c < ll)      # 2 dk kapanış, kapanmış HTF kanalını aşınca
-def fast(e, lo, hi):
-    x = e[lo:hi] - e[lo]; x30 = x[::15]; dd = np.maximum.accumulate(x30) - x30
-    return x[-1], (x[-1] / ((hi - lo) / (720 * 365))) / dd.max() if dd.max() > 0 else 0, dd.max()
-z = np.zeros(n, np.bool_); rows = []
-for rule, N in itertools.product(['4h', '1D'], [10, 20, 40, 60]):
-    eL, eS = don_entry(rule, N); eL = np.nan_to_num(eL).astype(np.bool_); eS = np.nan_to_num(eS).astype(np.bool_)
-    for atrsrc, k in itertools.product(['4h', '1D'], [2, 3, 4, 6, 8]):
-        D = (A4 if atrsrc == '4h' else A1) * k
-        for side in ('çift', 'long'):
-            es = eS if side == 'çift' else z
-            eq, T = z02.sim4(F['o'], F['h'], F['l'], F['c'], F['atr'], eL, es, D, z, z, 4.0, 120, 99.0)
-            a = fast(eq, 0, mid); b = fast(eq, mid, n); f = fast(eq, 0, n)
-            t = pd.DataFrame(T, columns=['ei', 'xi', 'side', 'ep', 'xp', 'pnl', 'mae', 'own'])
-            top = t.pnl.nlargest(3).sum() / max(t.pnl.sum(), 1)
-            rows.append(dict(entry=f'DON {rule} {N}', exit=f'{k}xATR{atrsrc}', side=side, n=len(t), net=eq[-1], IS=a[0], OOS=b[0], MaxDD=f[2], Cal=f[1], ISc=a[1], OOSc=b[1], top3=top))
-R = pd.DataFrame(rows); R.to_csv('/home/claude/zecwork/trend2.csv', index=False)
-print(R.sort_values('net', ascending=False).head(15).round(2).to_string(index=False))
-print(R[(R.IS > 0) & (R.OOS > 0)].sort_values('Cal', ascending=False).head(10).round(2).to_string(index=False))
+# ARA TREND: rejim (4s EMA üstü + eğim) içinde Donchian kırılımla gir, kâr al (%) / kısa kanal / ATR izle çık, yeni kırılımda tekrar gir (her giriş 500 $)
+exec(open('/home/claude/zecwork/trend1.py').read().split("eq, T = sim(X0); ad('V2.7 baz', eq, T)\nfor N, M")[0])
+r0, r1 = p('2025-09-01'), p('2026-01-01')
+def extra(eq, T, own):
+    m = T[:, 7] == own; x = T[m, 5]; tot = x.sum()
+    return dict(trendN=int(m.sum()), trend=tot, enBüyükPay=(x.max() / tot * 100) if tot > 0 else np.nan, ralliHariçNet=eq[-1] - (eq[r1] - eq[r0]))
+def state2(E, Ne, Nx, tp, k):
+    C = Z4.c.values; em = Z4.c.ewm(span=E, adjust=False).mean().values; reg = (C > em) & (em > np.r_[np.full(6, np.nan), em[:-6]])
+    hi = Z4.h.rolling(Ne).max().shift(1).values; lo = Z4.l.rolling(Nx).min().shift(1).values; st_ = np.zeros(len(C)); s = 0; ep = ext = 0.0
+    for t in range(len(C)):
+        if s == 1:
+            ext = max(ext, C[t])
+            if (not reg[t]) or C[t] < lo[t] or (k > 0 and C[t] < ext - k * A4[t]) or (tp > 0 and C[t] >= ep * (1 + tp)): s = 0
+        elif reg[t] and C[t] > hi[t]: s = 1; ep = ext = C[t]
+        st_[t] = s
+    return np.nan_to_num(map1m(pd.Series(st_, Z4.index), 4))
+eq, T = sim(X0); ad('V2.7 baz', eq, T); out[-1].update(ralliHariçNet=eq[-1] - (eq[r1] - eq[r0]))
+for E in (100, 200):
+    for Ne, Nx in ((20, 10), (55, 20)):
+        for tp in (0.15, 0.25, 0.40, 0.0):
+            for k in (4, 6):
+                nm = f'EMA{E} kırılım{Ne}/{Nx} kâr%{int(tp * 100)} iz{k}'; stt = state2(E, Ne, Nx, tp, k)
+                eq, T = simT(stt, False); ad('TEK: ' + nm, eq, T); out[-1].update(extra(eq, T, 1))
+                eq, T = simT(stt, True); ad('V2.7+' + nm, eq, T); out[-1].update(extra(eq, T, 1))
+R = pd.DataFrame(out); R.to_csv('/home/claude/pine_hello_world/ZEC/research/ARA_TREND_1DK.csv', index=False); pd.set_option('display.width', 300)
+cols = ['model', 'n', 'net', 'PF', 'MaxDD', 'DDp99', 'IS', 'OOS', 'son300', 'R2_2023p', 'trendN', 'trend', 'enBüyükPay', 'ralliHariçNet']
+print('\n=== BİRLEŞİK, MaxDD ≤ 500 ==='); print(R[R.model.str.startswith('V2.7') & (R.MaxDD <= 500)].sort_values('net', ascending=False)[cols].head(12).round(1).to_string(index=False))
+print('\n=== BİRLEŞİK, net sırası ==='); print(R[R.model.str.startswith('V2.7')].sort_values('net', ascending=False)[cols].head(8).round(1).to_string(index=False))
