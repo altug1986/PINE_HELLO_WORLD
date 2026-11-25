@@ -97,3 +97,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - ORKESTRA-4: net 8.740 · 2.557 işlem · PF 1,52 · MaxDD 391 · DD P95/P99 220/314 · Sharpe 2,42 · Calmar 3,79 · ilk/ikinci yarı 4.421/4.318 · TV penceresi 4.267 (tam modelden yüksek) · monkey ✓ · MC P5 5.457 · 12 ay DD P95/P99 619/784 · stres 6.763.
 - Zayıf yanlar: 2023 −67; akran verisi 1–2 saat gecikmede −%29 (saat sınırı zamanlamasına duyarlı); basis TV'de spot ile yaklaşık.
 - 5. motor 9.014'e çıkarıyor ama yalnız ~20 işlem açıyor → gürültü, alınmadı.
+
+## 2026-11-25 — TV V2.3 birleşik + yakın yarı seçimi + POMPA long
+- TV V2.3 iki export birleşik (2020-02 → 2026-11): 2.587 işlem, net 9.024 $, PF 1,495; 2021+ TV 8.882 vs motor 8.619. Yıllar TV/motor: 2021 2.010/2.240 · 2022 2.441/2.352 · 2023 286/160 · 2024 679/763 · 2025 2.563/2.336 · 2026 903/767. Giriş eşleşmesi %60–80.
+- Yakın yarıda kural seçimi: yeni yarı 6.942 (seçim içi) ama eski yarı 529 (2022 −282, 2023 −467), MaxDD 1.060 → RET (aşırı uyum).
+- İki yarı uzlaşma seçimi: 6.826, MaxDD 873 → RET.
+- POMPA olay taraması (10 bar ≥ %3 → long): tek başına 484 işlem +1.684 $, 6/6 yıl; sisteme en yüksek öncelikle eklenince 8.427 / MaxDD 778 (pompa sonrası short'ları kesiyor) → RET.
+- POMPA en düşük öncelik (hacim ≥3×, stop 8×ATR, 480 dk): 8.389 (−%3,3), MaxDD 386; pompa işlemleri 147 adet −126 $ → eşik geçmedi; kullanıcı isteğiyle V2.4 Pine'a eklendi.

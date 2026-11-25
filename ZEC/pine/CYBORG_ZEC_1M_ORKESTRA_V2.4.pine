@@ -1,0 +1,442 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// CYBORG | ZEC 1M ORKESTRA V2.4  —  BINANCE:ZECUSDT.P, 1 dakika
+// REV-06 (2026-11-25): POMPA LONG (kullanıcı isteği, 23 Kas 2026 pompası)
+//   10 dk getiri ≥ %3 VE 10 dk ort. hacim ≥ 3 × önceki 1.440 dk ort. hacim → short'taysa kapat + aynı barda LONG, flat'se LONG.
+//   POMPA en düşük öncelikli 5. motor: oybirliği/3 bar şartı yok, stop girişten 8×ATR, süre 480 dk; üst motor ters isterse çıkar.
+//   BEDEL (araştırma motoru): V2.3 8.674 $ → V2.4 8.389 $ (−%3,3) · MaxDD 383 → 386 · DD P99 320 → 336 · Sharpe 2,4 → 2,3
+//   POMPA kendi işlemleri 147 adet, net −126 $, kazanma %40 (tüm geçmişte kâr katmıyor) · 23 Kas 13:56 → 15:26 long +34,7 $
+//   yıllar 2021 +2.142 · 2022 +2.184 · 2023 +140 · 2024 +951 · 2025 +2.179 · 2026 +793 · TV penceresi (2023-02-06→) beklenen 4.036 $.
+//   İyileştirme eşiğini GEÇMEDİ; davranış isteğe göre eklendi. TV'de DOĞRULANMADI.
+// REV-05 (2026-11-25): ÇARPIŞMA = FLAT · DUR, NEFES AL, GEÇ
+//   Giriş için 4 motorun hiçbiri ters yön istememeli (oybirliği) ve bu ortak yön 3 bar sürmeli; çarpışmada yeni giriş yok.
+//   Süre dolunca aynı yönü isteyen herhangi bir motor pozisyonu devralır (kapat-aynı yöne yeniden aç yok).
+//   TV V2.1: 1.446 işlem, net 4.442 $ (2023-02→), çıkıştan hemen sonra aynı yöne giriş 104, ani dönüş 348.
+//   Motor: V2.1 8.883 $ → V2.3 8.674 $ (−%2) · aynı yöne hemen yeniden giriş 160 → 61 · ani dönüş 585 → 99 · tek bar 43 → 35
+//   MaxDD 387 → 383 · DD P95/P99 258/320 · PF 1,54 · Sharpe 2,43 · Calmar 3,85 · 12 ay ileri DD P95/P99 589/709 · stres 6.917
+//   yıllar 2021 +2.257 · 2022 +2.329 · 2023 +169 (önce −34) · 2024 +769 · 2025 +2.334 · 2026 +816 · Kasım 2026 +155
+//   TV penceresi (2023-02-06→) beklenen 4.033 $ / 1.514 işlem. TV'de DOĞRULANMADI.
+// REV-04 (2026-11-25): GİRİŞ-ÇIKIŞ ZİNCİRİ DÜZELTMESİ — daha öncelikli motor ters yön istiyorsa alt motor giremez
+//   (V2.0'da alt motor girip bir sonraki barda üst motorun ters oyuyla kapanıyordu: 316 tek barlık işlem).
+//   Hız: 240/1.440 barlık standart sapmalar kayan toplamla (aynı sonuç, örneklem std).
+//   Motor: V2.0 8.740 $ / 2.557 işlem / MaxDD 391 / DD P99 314 → V2.1 8.883 $ / 2.274 işlem / MaxDD 387 / DD P99 308 / PF 1,54 / Sharpe 2,46 / Calmar 3,90
+//   tek barlık işlem 316 → 43 · 12 ay ileri DD P95/P99 590/712 · stres 7.116 · yıllar 2021 +2.201 · 2022 +2.316 · 2023 −34 · 2024 +1.032 · 2025 +2.535 · 2026 +832
+//   TV penceresi (2023-02-06→) beklenen 4.346 $ / 1.495 işlem. TV'de DOĞRULANMADI.
+// REV-03 (2026-11-25): ORKESTRA — tek 500 $ birimde öncelik sıralı 4 motor (V1.1 çatısı üzerine).
+//   E0 ana (fiyat+OI+basis, 8 s ufuk, dikkat+fitil) > E1 hızlı (fiyat+OI, 2 s) > E2 (fiyat+OI+basis, 2 s) > E3 (geniş fiyat seti, 4 s)
+//   Boşta en öncelikli izinli motor girer. Daha öncelikli motor aynı yönü isterse pozisyonu devralır, tersini isterse kapatır.
+//   Yeni oylar: X17 basis (perp / BINANCE:ZECUSDT spot, 1.440 dk z) · P01 EMA40/120 · P02 Supertrend(60, 3√2) · P03 30 dk EMA20 eğimi
+//               P05 Donchian 240 orta · P06 120 dk ROC/ATR · P13 BTC 60 dk · P14 XMR 60 dk · X16 mum yönlü hacim akışı 20 dk
+//   Kural tabloları ZEC 2021-01→2023-12 (ilk yarı) verisinden sabitlendi (motor başına ayrı ufuk/eşik); TV'de yeniden seçim YOK.
+// ARAŞTIRMA MOTORU (1 dk, %0,04×2 + 1 tick, sabit 500 $, basis = index fiyatı): net 8.740 $ (%1.748) · 2.557 işlem · PF 1,52
+//   MaxDD 391 · DD P95/P99 220/314 (30 dk MTM) · Sharpe 2,42 · Calmar 3,79 · ilk/ikinci yarı 4.421/4.318 · monkey yön+zaman ✓
+//   yıllar 2021 +2.197 · 2022 +2.258 · 2023 −67 · 2024 +1.015 · 2025 +2.532 · 2026 +804
+//   TV penceresi (2023-02-06→): beklenen 4.207 $ / 1.682 işlem (long +3.853, short +354). TV'de DOĞRULANMADI.
+//   Basis TV'de spot ile hesaplanır (motor index kullanır) → ilk TV export'unda X17 farkı kontrol edilecek.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+strategy("CYBORG | ZEC 1M ORKESTRA V2.4", shorttitle="ZEC1M-ORK", overlay=true, initial_capital=500,
+     default_qty_type=strategy.cash, default_qty_value=500, commission_type=strategy.commission.percent, commission_value=0.04,
+     slippage=1, process_orders_on_close=true, pyramiding=0, margin_long=0, margin_short=0, max_bars_back=2000)
+
+// ── Sabitler ────────────────────────────────────────────────────────────────────────────────────
+string BTC = "BINANCE:BTCUSDT.P"
+string XMR = "BINANCE:XMRUSDT.P"
+string BAT = "BINANCE:BATUSDT.P"
+string PEP = "BINANCE:1000PEPEUSDT.P"
+string ZOI = "BINANCE:ZECUSDT.P_OI"
+string ZSP = "BINANCE:ZECUSDT"   // [REV-03] spot, basis için
+float TS = 28.0              // [REV-03] bütün motorlar 28×ATR
+float WF = 0.4
+float R2 = math.sqrt(2.0)
+// [REV-04] kayan örneklem std (O(1))
+sdS(float x, int n) =>
+    float m = ta.sma(x, n)
+    float m2 = ta.sma(x * x, n)
+    math.sqrt(math.max(m2 - m * m, 0) * n / (n - 1))
+
+// ── 1 dk seriler ──────────────────────────────────────────────────────────────────────────────
+float atr  = ta.rma(ta.tr(true), 60)
+float btc1 = request.security(BTC, "1", close)
+float xmr1 = request.security(XMR, "1", close)
+float bat1 = request.security(BAT, "1", close)
+float spot1 = request.security(ZSP, "1", close)   // [REV-03]
+
+// ── Oylar ─────────────────────────────────────────────────────────────────────────────────────
+float h4d = request.security(syminfo.tickerid, "240", (close - ta.ema(close, 50))[1], lookahead = barmerge.lookahead_on)
+int vP04 = na(h4d) ? 0 : int(math.sign(h4d))
+float zE = nz((close - ta.ema(close, 480)) / atr)
+int vP08 = zE <= -8 * R2 ? 1 : zE >= 8 * R2 ? -1 : 0
+float m20 = nz((close - close[40]) / atr)
+float upF = nz(ta.highest(m20 >= 10 * R2 ? 1.0 : 0.0, 120))
+float dnF = nz(ta.highest(m20 <= -10 * R2 ? 1.0 : 0.0, 120))
+int vP09 = int(dnF - upF)
+float mu = ta.sma(close, 240)
+float sd = sdS(close, 240)   // [REV-04]
+int vP10 = close < mu - 2.5 * sd ? 1 : close > mu + 2.5 * sd ? -1 : 0
+float dz = nz(math.log(close / close[1]))
+float db = nz(math.log(btc1 / btc1[1]))
+float beta = nz(ta.sma(dz * db, 1440) / ta.sma(db * db, 1440))
+float eR = dz - beta * db
+float q = nz(math.sum(eR, 60) / (sdS(eR, 1440) * math.sqrt(60)))   // [REV-04]
+int vP15 = q > 2 ? 1 : q < -2 ? -1 : 0
+// [REV-02] OI oyları: 60 dk OI % değişimi ve fiyat yönü
+float oi = request.security(ZOI, "5", close[1], lookahead = barmerge.lookahead_on)
+float doi = nz((oi / oi[60] - 1) * 100)
+float dp60 = nz((close / close[60] - 1) * 100)
+int vP11 = doi > 1 and dp60 > 0 ? 1 : doi > 1 and dp60 < 0 ? -1 : 0
+int vP12 = doi < -2 and dp60 < 0 ? 1 : doi < -2 and dp60 > 0 ? -1 : 0
+
+// [REV-03] Yeni oylar
+float e40 = ta.ema(close, 40)
+float e120 = ta.ema(close, 120)
+int vP01 = e40 > e120 ? 1 : e40 < e120 ? -1 : 0
+var float fu = na
+var float fd = na
+var int vP02 = 1
+float mST = 3 * R2
+if not na(atr)
+    float up = hl2 - mST * atr
+    float dn = hl2 + mST * atr
+    if na(fu)
+        fu := up
+        fd := dn
+    else
+        float fuP = fu
+        float fdP = fd
+        fu := close[1] > fuP ? math.max(up, fuP) : up
+        fd := close[1] < fdP ? math.min(dn, fdP) : dn
+        vP02 := close > fdP ? 1 : close < fuP ? -1 : vP02
+float s30 = request.security(syminfo.tickerid, "30", (ta.ema(close, 20) - ta.ema(close, 20)[1])[1], lookahead = barmerge.lookahead_on)
+int vP03 = na(s30) ? 0 : s30 > 0 ? 1 : s30 < 0 ? -1 : 0
+float donM = (ta.highest(high, 240)[1] + ta.lowest(low, 240)[1]) / 2
+int vP05 = na(donM) ? 0 : close > donM ? 1 : close < donM ? -1 : 0
+float roc = nz((close - close[120]) / atr)
+int vP06 = roc > R2 ? 1 : roc < -R2 ? -1 : 0
+float bt60 = nz((btc1 / btc1[60] - 1) * 100)
+int vP13 = bt60 > 0.1 * R2 ? 1 : bt60 < -0.1 * R2 ? -1 : 0
+float xm60 = nz((xmr1 / xmr1[60] - 1) * 100)
+int vP14 = xm60 > 0.2 * R2 ? 1 : xm60 < -0.2 * R2 ? -1 : 0
+float flw = nz(math.sum(math.sign(close - open) * volume, 20) / math.sum(volume, 20))
+int vX16 = flw > 0.15 ? 1 : flw < -0.15 ? -1 : 0
+float bs = (close / spot1 - 1) * 1e4
+float bz = nz((bs - ta.sma(bs, 1440)) / sdS(bs, 1440))   // [REV-04]
+int vX17 = bz <= -2 ? 1 : bz >= 2 ? -1 : 0
+int vP07 = 0   // RSI: hiçbir tabloda seçilmedi
+
+// ── Rejim: 4s ADX ─────────────────────────────────────────────────────────────────────────────
+dmi4() =>
+    [p, m, a] = ta.dmi(14, 14)
+    [a[1], p[1], m[1]]
+[adx4, pdi4, mdi4] = request.security(syminfo.tickerid, "240", dmi4(), lookahead = barmerge.lookahead_on)
+int RG = na(adx4) ? 9 : adx4 >= 20 ? int(math.sign(pdi4 - mdi4)) : 0
+bool deB = request.security(syminfo.tickerid, "D", (close > ta.ema(close, 20))[1], lookahead = barmerge.lookahead_on)
+int De = deB ? 1 : 0
+int Xb = nz(xmr1[1] / xmr1[1441]) > 1 ? 1 : 0
+
+// ── Rejim: saatlik akran özellikleri (kapanmış 1 s bar, saat başında güncellenir) ────────────────
+atrp() => ta.rma(ta.tr(true), 14) / close * 100
+lret() => math.log(close / close[1])
+[zA, zR] = request.security(syminfo.tickerid, "60", [atrp()[1], lret()[1]], lookahead = barmerge.lookahead_on)
+[bA, bR] = request.security(BTC, "60", [atrp()[1], lret()[1]], lookahead = barmerge.lookahead_on)
+float xA = request.security(XMR, "60", atrp()[1], lookahead = barmerge.lookahead_on)
+float tA = request.security(BAT, "60", atrp()[1], lookahead = barmerge.lookahead_on)
+float pA = request.security(PEP, "60", atrp()[1], lookahead = barmerge.lookahead_on)
+
+lastVals(array<float> a, int n) =>
+    array<float> t = array.new_float(0)
+    int sz = array.size(a)
+    if sz > 0
+        for i = math.max(0, sz - n) to sz - 1
+            float v = array.get(a, i)
+            if not na(v)
+                array.push(t, v)
+    t
+medLast(array<float> a, int n, int minp) =>
+    array<float> t = lastVals(a, n)
+    array.size(t) >= minp ? array.median(t) : na
+zLast(array<float> a, int n, int minp) =>
+    array<float> t = lastVals(a, n)
+    float x = array.size(a) > 0 ? array.get(a, array.size(a) - 1) : na
+    array.size(t) >= minp and not na(x) ? (x - array.avg(t)) / array.stdev(t, false) : na
+corrLast(array<float> a, array<float> b, int n, int minp) =>
+    int sz = array.size(a)
+    float sx = 0.0
+    float sy = 0.0
+    float sxx = 0.0
+    float syy = 0.0
+    float sxy = 0.0
+    int k = 0
+    if sz > 0
+        for i = math.max(0, sz - n) to sz - 1
+            float x = array.get(a, i)
+            float y = array.get(b, i)
+            if not na(x) and not na(y)
+                sx += x
+                sy += y
+                sxx += x * x
+                syy += y * y
+                sxy += x * y
+                k += 1
+    float kf = k > 0 ? float(k) : 1.0
+    float vx = sxx - sx * sx / kf
+    float vy = syy - sy * sy / kf
+    k >= minp and vx > 0 and vy > 0 ? (sxy - sx * sy / kf) / math.sqrt(vx * vy) : na
+pushCap(array<float> a, float v) =>
+    array.push(a, v)
+    if array.size(a) > 2200
+        array.shift(a)
+
+var array<float> aZA = array.new_float(0)
+var array<float> aPM = array.new_float(0)
+var array<float> aZR = array.new_float(0)
+var array<float> aBR = array.new_float(0)
+var array<float> aREL = array.new_float(0)
+var array<float> aBC = array.new_float(0)
+var array<float> aAC = array.new_float(0)
+var int K = 1
+var int Vh = 1
+var int A = 1
+bool newH = nz(ta.change(time("60"))) != 0
+if newH
+    array<float> pk = array.new_float(0)
+    if not na(bA)
+        array.push(pk, bA)
+    if not na(xA)
+        array.push(pk, xA)
+    if not na(tA)
+        array.push(pk, tA)
+    if not na(pA)
+        array.push(pk, pA)
+    float pm = array.size(pk) > 0 ? array.median(pk) : na
+    pushCap(aZA, zA)
+    pushCap(aPM, pm)
+    pushCap(aZR, zR)
+    pushCap(aBR, bR)
+    pushCap(aREL, (not na(zA) and not na(pm) and pm > 0) ? math.log(zA / pm) : na)
+    float relz = zLast(aREL, 720, 240)
+    float atrC = corrLast(aZA, aPM, 168, 96)
+    float btcC = corrLast(aZR, aBR, 72, 48)
+    pushCap(aBC, btcC)
+    pushCap(aAC, atrC)
+    K  := nz(btcC - medLast(aBC, 2160, 500)) >= 0 ? 1 : 0
+    Vh := nz(relz) >= 0 ? 1 : 0
+    A  := nz(atrC - medLast(aAC, 2160, 500)) >= 0 ? 1 : 0
+
+int g  = RG == 9 ? -1 : RG + 1
+int rc = g < 0 ? -1 : ((g * 8 + K * 4 + Vh * 2 + A) * 2 + De) * 2 + Xb
+
+// ── Kural tabloları (motor başına; karakter i = rejim hücresi i) ──────────────────────────────────
+toArr(string m) =>
+    array<bool> a = array.new_bool(96, false)
+    for i = 0 to 95
+        array.set(a, i, str.substring(m, i, i + 1) == "1")
+    a
+kural(array<bool> m, int v, int side) => rc >= 0 and rc < 96 ? (v == side and array.get(m, rc) ? 1 : 0) : 0
+var array<bool> M_E0_P04_L = toArr("000111000000001111001001000001100000010000100010010000000011100001100001111001000001010001110011")
+var array<bool> M_E0_P04_S = toArr("001000000000000101100100100000001110011110000101100000011001001011000000101100000000000010000000")
+var array<bool> M_E0_P08_L = toArr("100010001010110000000000001010100100000000011010000010100000000000000000111100110100000000000000")
+var array<bool> M_E0_P08_S = toArr("000000001000000010000000000010000000010101111101000010000000010100000101000001010001000000010101")
+var array<bool> M_E0_P09_L = toArr("100000001000100000000000001010101100000000111000000011000100101000110000001101110000000000000000")
+var array<bool> M_E0_P09_S = toArr("000001001000110001001000100011000100010000000101010000000010010100000000000000010000000000000001")
+var array<bool> M_E0_P10_L = toArr("000010000010000000001000001010100000000000000010010010000000100000000011011100100000000000000000")
+var array<bool> M_E0_P10_S = toArr("110000000000010010000000000000000100000000000001100000000000010000000001000001010100000000000001")
+var array<bool> M_E0_P15_L = toArr("000000000000000011000100000010000000000000010000010000000000000000010000001100000000000000000000")
+var array<bool> M_E0_P15_S = toArr("000000000000000010000100100001001000000010000000100000000000000000100000000000000000000000000000")
+var array<bool> M_E0_P11_L = toArr("010010001000100000001100100000000000000000100000010000010000100000000000111000000001010000000100")
+var array<bool> M_E0_P11_S = toArr("000000000010000000000000100010000001110010010010100001101000000100100000000001010100000000010000")
+var array<bool> M_E0_P12_L = toArr("000000000000000000001100000000000000000000000000000000000000000000000000011000010000000000000000")
+var array<bool> M_E0_P12_S = toArr("000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000")
+var array<bool> M_E0_X17_L = toArr("000000000000000001000000001010100000000000100000010010000000000000000000001100000000000000000000")
+var array<bool> M_E0_X17_S = toArr("000000000000000011000100100001000100000000000001000001000000010000000000000000010000000000000000")
+var array<bool> M_E1_P04_L = toArr("000001000000001111100000000100010101010000000010000100000001000000100001011001100001010000010010")
+var array<bool> M_E1_P04_S = toArr("001000000001000101000000100000001010010100000101001000101001001001000000101100000100110010001000")
+var array<bool> M_E1_P08_L = toArr("100000001010000000100000011010100000001000011011000010101000100010000000111100010000000000000000")
+var array<bool> M_E1_P08_S = toArr("010000001000000010000100000101000000000101001101000110000010010000000101001001000001000000010101")
+var array<bool> M_E1_P09_L = toArr("100000000000000000000000001010101100001000111011000011001000100000100000001100010000000000000000")
+var array<bool> M_E1_P09_S = toArr("000000001000000001000000110001000000010001000111010000000000000000000001001001000000000000000001")
+var array<bool> M_E1_P10_L = toArr("000010000000000000001000001010100000001000000010000010001000100000000011011100100000000000000000")
+var array<bool> M_E1_P10_S = toArr("010000001000000010000100010001000000000101000001100100000000010000010000001000000000000000000001")
+var array<bool> M_E1_P15_L = toArr("000000000000000011000000000000000000010000010000000001000000000000000000000100000000000000000000")
+var array<bool> M_E1_P15_S = toArr("000000000000000000000100000001000000000010000000000000000000000000100000000000000000000000000000")
+var array<bool> M_E1_P11_L = toArr("000000000000100000000000100010000001000000010000011010000000000100000000010000110101010000000000")
+var array<bool> M_E1_P11_S = toArr("000000001110010011000000100010000000010011010000100000101000111101100000000101010100000000000000")
+var array<bool> M_E1_P12_L = toArr("000000000010000000001100100000000000000000100000000000000000000000010000011000000000000000000000")
+var array<bool> M_E1_P12_S = toArr("000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000")
+var array<bool> M_E2_P04_L = toArr("000000000000001001000000000000000000000000000000000000000000000000000000000000000000000000000010")
+var array<bool> M_E2_P04_S = toArr("001000000000000000000000000000000010000000000101001000000000000001000000101100000100100010001000")
+var array<bool> M_E2_P08_L = toArr("000000000010000000000000011000100000000000001011000010000000000000000000101100010000000000000000")
+var array<bool> M_E2_P08_S = toArr("000000000000000010000000000000000000000101001101000100000000000000000100001001000000000000010001")
+var array<bool> M_E2_P09_L = toArr("000000000000000000000000001010100000000000111011000010001000100000100000001100010000000000000000")
+var array<bool> M_E2_P09_S = toArr("000000000000000001000000100000000000000000000111010000000000000000000000000000000000000000000000")
+var array<bool> M_E2_P10_L = toArr("000000000000000000001000001010100000001000000010000010001000100000000011001000100000000000000000")
+var array<bool> M_E2_P10_S = toArr("010000001000000000000000010001000000000000000001100100000000010000000000001000000000000000000001")
+var array<bool> M_E2_P15_L = toArr("000000000000000001000000000000000000010000010000000000000000000000000000000100000000000000000000")
+var array<bool> M_E2_P15_S = toArr("000000000000000000000100000001000000000010000000000000000000000000100000000000000000000000000000")
+var array<bool> M_E2_P11_L = toArr("000000000000100000000000100000000001000000000000000000000000000000000000010000110101010000000000")
+var array<bool> M_E2_P11_S = toArr("000000000110000001000000100010000000000010010000000000001000011100000000000001000100000000000000")
+var array<bool> M_E2_P12_L = toArr("000000000000000000001000100000000000000000000000000000000000000000000000011000000000000000000000")
+var array<bool> M_E2_X17_L = toArr("000000000000000000000000001010100000000000000000010010000000000000000000001100000000000000000000")
+var array<bool> M_E2_X17_S = toArr("000000000000000000000000100001000000000000000000000000000000010000010000000000000000000000000000")
+var array<bool> M_E3_P04_L = toArr("000001000000001101001100000001100000010000000010000000000000000000100000011001000000010001010010")
+var array<bool> M_E3_P04_S = toArr("001000000000000100100000100000001010011000000101001000001000001001000000101100000100100010000000")
+var array<bool> M_E3_P08_L = toArr("100000000010000000000000011010100000001000011001000010100000000000100000111100110000000000000000")
+var array<bool> M_E3_P08_S = toArr("000000000000000010000000000100000000010101101101000010000000010000000101001001000001000000010101")
+var array<bool> M_E3_P09_L = toArr("100000000000000000000000001010101100000000011011000010000000100000110000001001100000000000000000")
+var array<bool> M_E3_P09_S = toArr("000000000000000001000000100001000000010001000101010000000000000000000001000000010000000000000001")
+var array<bool> M_E3_P10_L = toArr("000010000000000000001000101010100000001000000010000010000000100000000010001100000000000000000000")
+var array<bool> M_E3_P10_S = toArr("010000001000000010000000000001000000000000000001100000000000010000000001001000000000000000000001")
+var array<bool> M_E3_P15_L = toArr("000000000000000010000000000000000000000000010000000001000000000000000000000100000000000000000000")
+var array<bool> M_E3_P15_S = toArr("000000000000000000000100000001001000000010000000100000000000000000000000000000000000000000000000")
+var array<bool> M_E3_P11_L = toArr("110000000000100010001000100000000000000000100000010010000000000000000000110000110001010000000000")
+var array<bool> M_E3_P11_S = toArr("000000001010000001000000000010000001110010010010100000001000011101000000000001010100000000000000")
+var array<bool> M_E3_P12_L = toArr("000000000010000000001100100000000000000000000000000000000000000000000000011000000000000000000000")
+var array<bool> M_E3_P12_S = toArr("000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000")
+var array<bool> M_E3_P01_L = toArr("000000000100101000010000000000000000000000101010000000000001000100100000010000100000000001000010")
+var array<bool> M_E3_P01_S = toArr("001000000001000000000010000000001010001000000000001000001000011100000000000010000100100010001000")
+var array<bool> M_E3_P02_L = toArr("000000000100101000010000000000100000000000001010000010000001000000100000010001000000000001000010")
+var array<bool> M_E3_P02_S = toArr("001000000000000010000000100000001010001000000000001000001000011100000000000010010010100010001000")
+var array<bool> M_E3_P03_L = toArr("001000000100100000000001000000000001000000100010000010000011000000100000010000100000000001000010")
+var array<bool> M_E3_P03_S = toArr("001000000001000000000010100000001010001000000000001000101000011000000000000010000100000010000100")
+var array<bool> M_E3_P05_L = toArr("000000000100101000010000000000000000000000101010010010000001000001100000010000000000000001000010")
+var array<bool> M_E3_P05_S = toArr("001000000001000000000010000000001010001000000000001000001000011100000000000010000100100010001000")
+var array<bool> M_E3_P06_L = toArr("000000000100101000010000000000000000000000101010010000000001000100100000010000100000000001000010")
+var array<bool> M_E3_P06_S = toArr("001000000001000000000000000000001010001000000000001000001000011100000000000010000100100010001000")
+var array<bool> M_E3_P13_L = toArr("000000000100101000010000000100100001000000001010000010000000000000101001010001000000000001000010")
+var array<bool> M_E3_P13_S = toArr("001000000011000000100110000000001010010000000000001000101000011100000000000010010010000010001000")
+var array<bool> M_E3_P14_L = toArr("000000000100101100010000000000100001000000001010000010000001000000101000110000000000001101010010")
+var array<bool> M_E3_P14_S = toArr("001000000011000001000000000000001010010100000001001000101000011100000000000010010000100010001000")
+var array<bool> M_E3_X16_L = toArr("000000000000101000000000000000100000000000000010000010000000000000100000010000100000000001000010")
+var array<bool> M_E3_X16_S = toArr("001000000001000001000010000000001010000000000000001000001000010000000000000010000110100010001000")
+
+int L0 = kural(M_E0_P04_L, vP04, 1) + kural(M_E0_P08_L, vP08, 1) + kural(M_E0_P09_L, vP09, 1) + kural(M_E0_P10_L, vP10, 1) + kural(M_E0_P15_L, vP15, 1) + kural(M_E0_P11_L, vP11, 1) + kural(M_E0_P12_L, vP12, 1) + kural(M_E0_X17_L, vX17, 1)
+int S0 = kural(M_E0_P04_S, vP04, -1) + kural(M_E0_P08_S, vP08, -1) + kural(M_E0_P09_S, vP09, -1) + kural(M_E0_P10_S, vP10, -1) + kural(M_E0_P15_S, vP15, -1) + kural(M_E0_P11_S, vP11, -1) + kural(M_E0_P12_S, vP12, -1) + kural(M_E0_X17_S, vX17, -1)
+int L1 = kural(M_E1_P04_L, vP04, 1) + kural(M_E1_P08_L, vP08, 1) + kural(M_E1_P09_L, vP09, 1) + kural(M_E1_P10_L, vP10, 1) + kural(M_E1_P15_L, vP15, 1) + kural(M_E1_P11_L, vP11, 1) + kural(M_E1_P12_L, vP12, 1)
+int S1 = kural(M_E1_P04_S, vP04, -1) + kural(M_E1_P08_S, vP08, -1) + kural(M_E1_P09_S, vP09, -1) + kural(M_E1_P10_S, vP10, -1) + kural(M_E1_P15_S, vP15, -1) + kural(M_E1_P11_S, vP11, -1) + kural(M_E1_P12_S, vP12, -1)
+int L2 = kural(M_E2_P04_L, vP04, 1) + kural(M_E2_P08_L, vP08, 1) + kural(M_E2_P09_L, vP09, 1) + kural(M_E2_P10_L, vP10, 1) + kural(M_E2_P15_L, vP15, 1) + kural(M_E2_P11_L, vP11, 1) + kural(M_E2_P12_L, vP12, 1) + kural(M_E2_X17_L, vX17, 1)
+int S2 = kural(M_E2_P04_S, vP04, -1) + kural(M_E2_P08_S, vP08, -1) + kural(M_E2_P09_S, vP09, -1) + kural(M_E2_P10_S, vP10, -1) + kural(M_E2_P15_S, vP15, -1) + kural(M_E2_P11_S, vP11, -1) + kural(M_E2_X17_S, vX17, -1)
+int L3 = kural(M_E3_P04_L, vP04, 1) + kural(M_E3_P08_L, vP08, 1) + kural(M_E3_P09_L, vP09, 1) + kural(M_E3_P10_L, vP10, 1) + kural(M_E3_P15_L, vP15, 1) + kural(M_E3_P11_L, vP11, 1) + kural(M_E3_P12_L, vP12, 1) + kural(M_E3_P01_L, vP01, 1) + kural(M_E3_P02_L, vP02, 1) + kural(M_E3_P03_L, vP03, 1) + kural(M_E3_P05_L, vP05, 1) + kural(M_E3_P06_L, vP06, 1) + kural(M_E3_P13_L, vP13, 1) + kural(M_E3_P14_L, vP14, 1) + kural(M_E3_X16_L, vX16, 1)
+int S3 = kural(M_E3_P04_S, vP04, -1) + kural(M_E3_P08_S, vP08, -1) + kural(M_E3_P09_S, vP09, -1) + kural(M_E3_P10_S, vP10, -1) + kural(M_E3_P15_S, vP15, -1) + kural(M_E3_P11_S, vP11, -1) + kural(M_E3_P12_S, vP12, -1) + kural(M_E3_P01_S, vP01, -1) + kural(M_E3_P02_S, vP02, -1) + kural(M_E3_P03_S, vP03, -1) + kural(M_E3_P05_S, vP05, -1) + kural(M_E3_P06_S, vP06, -1) + kural(M_E3_P13_S, vP13, -1) + kural(M_E3_P14_S, vP14, -1) + kural(M_E3_X16_S, vX16, -1)
+
+// ── Giriş izinleri: fitil (son 10 dk mum) + E0 long dikkati ───────────────────────────────────────
+float Hw = ta.highest(high, 10)
+float Lw = ta.lowest(low, 10)
+float Ow = open[9]
+float rw = math.max(Hw - Lw, 1e-9)
+bool fL = (math.min(Ow, close) - Lw) / rw >= 0.4
+bool fS = (Hw - math.max(Ow, close)) / rw >= 0.4
+bool batUp = bat1 > ta.ema(bat1, 1440) and nz(bat1 / bat1[1440]) > 1
+bool dikkatL = nz(xmr1 / xmr1[1440] - 1) >= 0.04 or batUp
+bool aL0 = L0 >= 2
+bool aS0 = S0 >= 2 and not aL0
+bool eL0 = L0 >= 2 + (dikkatL ? 2 : 0) and fL
+bool eS0 = S0 >= 2 and fS
+bool aL1 = L1 >= 2
+bool aS1 = S1 >= 1 and not aL1
+bool eL1 = L1 >= 2 and fL
+bool eS1 = S1 >= 1 and fS
+bool aL2 = L2 >= 2
+bool aS2 = S2 >= 1 and not aL2
+bool eL2 = L2 >= 2
+bool eS2 = S2 >= 1
+bool aL3 = L3 >= 2
+bool aS3 = S3 >= 2 and not aL3
+bool eL3 = L3 >= 2 and fL
+bool eS3 = S3 >= 2 and fS
+
+// ── ORKESTRA: öncelik, devralma, çıkış, giriş (araştırma motoru simN ile aynı sıra) ─────────────────
+var int own = -1
+var int ti = 0
+var int noS = -1
+bool spk = nz(close / close[10] - 1) >= 0.03
+if spk
+    noS := bar_index + 60
+float vrt = ta.sma(volume, 10) / ta.sma(volume, 1440)[1]   // [REV-06]
+bool pmp = spk and nz(vrt) >= 3                              // [REV-06] POMPA
+int w0 = aL0 ? 1 : (aS0 and bar_index > noS) ? -1 : 0
+int w1 = aL1 ? 1 : (aS1 and bar_index > noS) ? -1 : 0
+int w2 = aL2 ? 1 : (aS2 and bar_index > noS) ? -1 : 0
+int w3 = aL3 ? 1 : (aS3 and bar_index > noS) ? -1 : 0
+int w4 = pmp ? 1 : 0   // [REV-06] POMPA motoru
+array<int> W = array.from(w0, w1, w2, w3, w4)
+// [REV-05] çarpışma: herhangi iki motor zıt yön isterse ortak yön yok (0); ortak yönün kaç bar sürdüğü
+bool anyL = w0 == 1 or w1 == 1 or w2 == 1 or w3 == 1 or w4 == 1   // [REV-06]
+bool anyS = w0 == -1 or w1 == -1 or w2 == -1 or w3 == -1
+int Dn = anyL and anyS ? 0 : anyL ? 1 : anyS ? -1 : 0
+var int runD = 0
+var int runN = 0
+if Dn != 0 and Dn == runD
+    runN += 1
+else
+    runD := Dn
+    runN := Dn != 0 ? 1 : 0
+array<int> THa = array.from(3840, 480, 960, 480, 480)   // [REV-06]
+array<float> TSa = array.from(TS, TS, TS, TS, 8.0)        // [REV-06] POMPA stop girişten 8×ATR
+array<bool> ELa = array.from(eL0, eL1, eL2, eL3, pmp)     // [REV-06]
+array<bool> ESa = array.from(eS0, eS1, eS2, eS3, false)   // [REV-06]
+var float sEp = na   // [REV-06] giriş fiyatı ve giriş ATR'si (sahip değişince stop yeniden kurulur)
+var float sAe = na
+int pos = strategy.position_size > 0 ? 1 : strategy.position_size < 0 ? -1 : 0
+if pos == 0
+    own := -1
+else if own < 0
+    own := 3
+bool guard = pos == -1 and spk
+if pos != 0 and not guard and own > 0
+    for j = 0 to own - 1
+        if array.get(W, j) == pos
+            own := j
+            ti := bar_index
+            break
+bool ex = false
+int blk = 0
+// [REV-05] süre dolduysa aynı yönü isteyen herhangi bir motor devralır
+if pos != 0 and not guard and bar_index - ti >= array.get(THa, own)
+    for kk = 0 to 4   // [REV-06]
+        if array.get(W, kk) == pos
+            own := kk
+            ti := bar_index
+            break
+if pos != 0
+    bool tout = bar_index - ti >= array.get(THa, own)
+    bool opp = false
+    for j = 0 to own
+        int wj = array.get(W, j)
+        if wj != 0 and wj != pos
+            opp := true
+    ex := guard or opp or tout
+    blk := tout and array.get(W, own) == pos ? pos : 0
+if ex
+    strategy.close_all(comment = "EXIT-ALL_BINANCE_ZECUSDT_ZEC-1M-CYBORG_1M_BOTKODU")
+    pos := 0
+    own := -1
+if pos != 0 and array.get(W, own) == pos
+    ti := bar_index
+if pos != 0 and not na(sEp)   // [REV-06] sahip motorun stop mesafesi
+    float stp = sEp - pos * array.get(TSa, own) * sAe
+    if pos == 1
+        strategy.exit("SL-L", from_entry = "L", stop = stp, comment = "EXIT-ALL_BINANCE_ZECUSDT_ZEC-1M-CYBORG_1M_BOTKODU")
+    else
+        strategy.exit("SL-S", from_entry = "S", stop = stp, comment = "EXIT-ALL_BINANCE_ZECUSDT_ZEC-1M-CYBORG_1M_BOTKODU")
+if pos == 0 and not na(atr)
+    for k = 0 to 4   // [REV-06]
+        int wk = array.get(W, k)
+        bool izin = wk == 1 ? array.get(ELa, k) : wk == -1 ? array.get(ESa, k) : false
+        bool ortak = k == 4 or (runD == wk and runN >= 3)   // [REV-05] oybirliği + 3 bar · [REV-06] POMPA şartsız
+        if ortak and wk != 0 and wk != blk and izin
+            float ep = close + syminfo.mintick * wk
+            own := k
+            ti := bar_index
+            sEp := ep    // [REV-06]
+            sAe := atr
+            float tsk = array.get(TSa, k)
+            if wk == 1
+                strategy.entry("L", strategy.long, comment = "ENTER-LONG_BINANCE_ZECUSDT_ZEC-1M-CYBORG_1M_BOTKODU")
+                strategy.exit("SL-L", from_entry = "L", stop = ep - tsk * atr, comment = "EXIT-ALL_BINANCE_ZECUSDT_ZEC-1M-CYBORG_1M_BOTKODU")
+            else
+                strategy.entry("S", strategy.short, comment = "ENTER-SHORT_BINANCE_ZECUSDT_ZEC-1M-CYBORG_1M_BOTKODU")
+                strategy.exit("SL-S", from_entry = "S", stop = ep + tsk * atr, comment = "EXIT-ALL_BINANCE_ZECUSDT_ZEC-1M-CYBORG_1M_BOTKODU")
+            break
+
+plot(own, "Sahip motor", color.gray, display = display.data_window)
+plot(rc, "Rejim hücresi", color.gray, display = display.data_window)
+plot(L0 - S0, "E0 oy farkı", color.blue, display = display.data_window)
