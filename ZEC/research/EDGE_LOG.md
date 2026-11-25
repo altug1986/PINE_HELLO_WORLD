@@ -220,3 +220,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Aday düzeyi: sıralama korelasyonu 0,01–0,03; geçmişten öğren → 2. yarı: en iyi %10 aday başına +0,1…+0,3 $ (4 s; t 0,5–2,3), +0,2…+1,1 $ (16 s; t 0,5–1,4). Gidiş-dönüş maliyeti ~0,4 $.
 - V2.9 giriş vetosu (en kötü %10/%20): her çarpanda −760 … −3.600 $ (atılan işlemler kârlı). FLAT dolgu (üst %2/5/10): çoğu −300 … −1.600 $; tek artı ×1 16 s (+250…+400, en az örnek, model ρ ≈ 0 → şans).
 - Karar: V2.9 kalıyor. Dosya: engine/buyuk.py, research/DEVASA_ADAY_FILTRE.csv.
+
+## 2026-11-25 — Web'den gelen veri aileleri (RET)
+- Kaynaklar: çeyrek saat taker dengesizliği → 4–12 s devam (arXiv 2607.09426, Binance perp 2021–2024, ~0,5 bp/sınır, "tek başına strateji değil"); akışa bağlı kısa vadeli dönüş (arXiv 2608.21888, brüt ≤ 1,3 bp, maliyeti geçmiyor); order flow imbalance (Cont ve ark.; 1 dk BTC negatif sonuç çalışması); takvim etkileri kalıcı değil (Baur ve ark. 2019); büyük likidasyon sonrası 30 g zayıflık (K33).
+- ZEC öngörü (Spearman IC, 1./2. yarı): çeyrek saat → 4–12 s +0,003…+0,005 / −0,003…−0,007 (işaret dönüyor); saat başı → 30 dk −0,030 / −0,021 ama üst-alt fark 0,2–2,4 bps (maliyet ~8 bps); 12 s net taker akışı → 8–12 s +0,004…+0,012 / +0,041…+0,057 (sadece 2. yarı); emir defteri ±%1 → 8–12 s −0,028…−0,036 / −0,021…−0,030 (1. yarı t < 1); ±%5 1. yarı +, 2. yarı ~0; funding → ödeme sonrası işaret dönüyor.
+- V2.9 kural: akışa karşı giriş vetosu −1.183 … −4.028 $; defter vetosu −1.258 … −2.232 $; funding ödeme öncesi veto −52/−60 $; baz FLAT iken 12 s akış yönünde dolgu −122 … −298 $.
+- Meta-model + 10 yeni özellik (akış 4/12 s, çeyrek saat, defter ±1/±5, top trader hesap/pozisyon, genel, taker L/S, premium): geçmişten öğren ρ 0,015/0,018/0,006/−0,004 (eski 0,010/0,025/0,013/0,010); veto −1.216 … −1.754 $, dolgu −95 … −993 $.
+- Karar: V2.9 kalıyor. Dosya: engine/webedge.py, webedge2.py, buyuk_yeni.py; research/WEB_AILE_ONGORU.csv, WEB_AILE_V29_KURAL.csv, DEVASA_ADAY_YENI_OZELLIK.csv.
