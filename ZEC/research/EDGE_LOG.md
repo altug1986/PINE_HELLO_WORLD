@@ -68,3 +68,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Gama OOS: IS'te en iyi = ÇOKLU-6 → OOS'ta da 1/11; OOS'ta en iyi → IS'te de 1/11.
 - SEÇİLEN: ÇOKLU-6 — net 2.265, MaxDD 163, DD P98 91, 12 ay ileri DD P95/P99 162/201, 12 ay zarar olasılığı %0,65, stres −%19. Bedel: net R5'in yarısı. Alternatif tek motor HIZLI-R: net 3.701, MaxDD 362, 12 ay DD P99 706, stres −%46 (maliyete kırılgan).
 - Monkey zaman testinde ilk koşudaki hata: miktar gerçek giriş fiyatından hesaplanmıştı (500/gerçek fiyat) → rastgele zamanın fiyatıyla düzeltildi.
+
+### 2026-11-25 — Akran rejimi regülasyonu (BTC getiri korelasyonu, ZEC ATR% / akran ATR% [BTC, XMR, BAT, PEPE], ATR korelasyonu)
+- Rejim = 4s ADX yönü × BTC 72 s getiri kor. (90 g medyanına göre yüksek/düşük) × ZEC göreli ATR z (sıcak/soğuk) × ATR korelasyonu (yüksek/düşük) → 24 hücre; kural seçimi yalnız ilk yarıda. Özellikler kapanmış 1 s bardan (+1 s), akran verisi 2026-11-24 06:04'e kadar.
+- 8 rejim tanımı × 1.458 koşu: işlem 1.400–2.300 ve iki yarı pozitif → en iyi tanım BTCkor×sıcak×ATRkor (max 7.454, medyan 4.728); baz rejim max 5.970.
+- SEÇİLEN AKRAN-A (15 bps / 8 s ufuk / kL2 kS3 / SL 24 ATR / 16 s): net 7.430, 1.991 işlem, IS 4.032 / OOS 3.398, MaxDD 510 (R5 512), DD P98 361, Calmar 2,48, MC P5 4.249, 12 ay ileri DD P95/P99 630/753, 12 ay zarar %1,15, monkey yön+zaman geçti, stres 5.887, akran gecikmesi 1 s 7.233 / 2 s 7.068, en uzun yatay 277 gün, short +1.573, son 2 ay +112, zayıf +620. Komşu 46: iki yarı pozitif 46/46, medyan 5.903.
+- Uyarı: gama genelinde IS'e göre seçilen ayar OOS'ta zayıf (yüzdelik 5,6) → seçim plato + gecikme ile yapıldı, tek IS tepesiyle değil.
+- AKRAN-C son 2 ay +436 / son 3 hafta +103 ama MaxDD 666 ve 2 s gecikmede −%22 → RED.
