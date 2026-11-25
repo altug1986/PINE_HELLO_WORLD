@@ -132,3 +132,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Arşiv Fikir 2 (gölge test, ulaşamadı → ters gir; ulaştı → gir/girme): 36/36 varyantta ters işlemler −616…−7.495 $ → RET.
 - FPR olay çalışması (44.334 sanal sinyal; N 3/6/9/12; mesafe %0,15–0,75 ve 0,25–1 ATR; karşı kırılım; OI artışı/azalışı; 60/240 bar): 224 varyantın 0'ı geçti, hepsi iki yarıda negatif (−17…−73 bps). Ayna: ulaşamadı+karşı kırılım sonrası ORİJİNAL yön 240 bar ≈ IS +56 / OOS +6 bps → ZEC ortalamaya dönüşçü; başarısızlık çöküş değil daha iyi giriş fiyatı.
 - Beta-düzeltilmiş ayrışma (BTC/ETH/XMR/piyasa, 4/24 s, z 2/2,5): ortalamaya dönüş 2021–23'te çalışıyor, 2024–26'da çoğu negatif; 32'de 1 geçen (XMR 24s/4s z2,5) komşusuz → şans.
+
+## 2026-11-25 — TREND MOTORU (4 s Donchian, sabit 500 $ giriş miktarı trend boyunca)
+- Tek başına en iyi: Donchian 100/50 yalnız long iz 8×ATR4s: 42 işlem, +4.409 $, PF 4,69, MaxDD 2.371; 2025-09-24→11-28 tek işlem 58,6→471,6 = +3.523 $.
+- V2.7 ile tek birim (trend öncelikli): 8.832 $ (+%5,6), PF 1,68, ilk/ikinci yarı 3.579/5.253, 2025 +3.712, son 300 g +1.180; MaxDD 413 → 2.443, trend işlem MAE max %19,5 → eşik ve MaxDD kırmızı çizgisi geçmedi.
+- 55/20 yalnız long: 7.874 / MaxDD 827. İki yönlü trend her varyantta daha kötü (short trendler ZEC'te çalışmıyor).
