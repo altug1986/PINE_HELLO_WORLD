@@ -114,3 +114,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Tavan %3/5/7/10: net 7.111/8.037/8.353/8.361 (baz 8.389), MaxDD 549/536/453/413 (baz 386), en kötü işlem −3/−5/−7/−10 % (baz −24,6 %).
 - Manevra (tavan stopunda ters yön): hep/trend 4s-24s/momentum 1s → manevra işlemleri −600…−3.300 $ (sistem ortalamaya dönüşçü) → RET. Yalnız "oy" (bir motor ters yönü istiyorsa) +100…+215 $, 47–120 işlem, MaxDD +80 → eşik geçmedi.
 - V2.7 = tavan %10 (risk talebi; net −%0,3, MaxDD +27).
+
+## 2026-11-25 — OI/LS rejim blokları + 2023 sonrası çekirdek (RET)
+- OI birikimi / OI–fiyat uyumu / global L/S / top trader L/S ek rejim biti (IS seçim): ikinci yarı 3.870 → −393…2.368, MaxDD 641–1.799 → hepsi RET (hücre bölünmesi = aşırı uyum).
+- Kâr 2023+ dağılımı: 2023-01→2024-06 +655 · 2024-07→2025-08 +231 · 2025-09→12 rallisi +2.322 · 2026 +836. Oynaklığa bölünmüş eğri de lineer değil (R² 0,84→0,88).
+- Kurallar 2023–24'ten seçilince: seçim içi +2.470…3.050, ileri 2025–26 −287…−1.948 → RET. 2021–23 seçimi (V2.7) ileri 2025–26 +3.024 ile en iyi kalıyor.
+- Portföy akış çukurları (10 dk zigzag 40 $): V2.7 son 300 g −368 $ (çukurların %42'si pozitif), son 90 g +64 $.
