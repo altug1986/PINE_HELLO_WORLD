@@ -1,0 +1,43 @@
+name: patch-1m
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/patch_1m.yml']
+permissions:
+  contents: write
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: daily 1m klines (tam kolon) 2026-11-19 → 2026-11-24
+        run: |
+          mkdir -p data
+          python3 - <<'PY'
+          import io, zipfile, urllib.request, datetime as dt, gzip, csv
+          days=[(dt.date(2026,11,19)+dt.timedelta(days=i)).isoformat() for i in range(6)]; log=[]
+          for s in ['1000PEPEUSDT','ZECUSDT','BTCUSDT','XMRUSDT']:
+            rows=[]; got=[]
+            for d in days:
+              u=f'https://data.binance.vision/data/futures/um/daily/klines/{s}/1m/{s}-1m-{d}.zip'
+              try:
+                z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(u,timeout=60).read()))
+                rows+=[l.split(',') for l in z.read(z.namelist()[0]).decode().splitlines() if l[:1].isdigit()]; got.append(d)
+              except Exception as e: log.append(f'{s} {d} YOK ({e})')
+            if not rows: continue
+            last=dt.datetime.utcfromtimestamp(int(rows[-1][0])/1000)
+            fn=f'data/{s}_1m_PATCH_UTC_20261119_THROUGH_{last:%Y%m%d}.csv.gz'
+            with gzip.open(fn,'wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time','open','high','low','close','volume','quote_volume','trades','taker_buy_base','taker_buy_quote'])
+              for r in rows: w.writerow([r[0],r[1],r[2],r[3],r[4],r[5],r[7],r[8],r[9],r[10]])
+            log.append(f'{fn} {len(rows)} satır, günler {got}')
+          open('data/PATCH_1m_LOG.txt','w').write('\n'.join(log)+'\n'); print('\n'.join(log))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/*_1m_PATCH_UTC_* data/PATCH_1m_LOG.txt || true
+          git commit -m "data: 1m yama 2026-11-19 → 24 (PEPE, ZEC, BTC, XMR)" || echo nothing
+          for i in 1 2 3; do git pull --rebase origin main && git push && break; sleep 15; done
