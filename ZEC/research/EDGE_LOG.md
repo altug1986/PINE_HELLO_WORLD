@@ -75,3 +75,11 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - SEÇİLEN AKRAN-A (15 bps / 8 s ufuk / kL2 kS3 / SL 24 ATR / 16 s): net 7.430, 1.991 işlem, IS 4.032 / OOS 3.398, MaxDD 510 (R5 512), DD P98 361, Calmar 2,48, MC P5 4.249, 12 ay ileri DD P95/P99 630/753, 12 ay zarar %1,15, monkey yön+zaman geçti, stres 5.887, akran gecikmesi 1 s 7.233 / 2 s 7.068, en uzun yatay 277 gün, short +1.573, son 2 ay +112, zayıf +620. Komşu 46: iki yarı pozitif 46/46, medyan 5.903.
 - Uyarı: gama genelinde IS'e göre seçilen ayar OOS'ta zayıf (yüzdelik 5,6) → seçim plato + gecikme ile yapıldı, tek IS tepesiyle değil.
 - AKRAN-C son 2 ay +436 / son 3 hafta +103 ama MaxDD 666 ve 2 s gecikmede −%22 → RED.
+
+### 2026-11-25 — ÇEVİK: günlük yön biti + portföy (4.600) korelasyonu + 2024 ortası + son 30 gün
+- Portföy verisi: research/CYBORG_4600_SECIM_20261123/regulator/data.json (10 dk MTM, 2023-05-08 → 2026-11-14), canlı 24 Kas nominalleri.
+- Bütün ZEC adaylarının portföyle günlük korelasyonu 0,01–0,14 → korelasyon bağlayıcı kısıt değil; bağlayıcı olanlar MaxDD ve 2024 ortası DD.
+- Rejime günlük yön biti eklendi (kapanmış günlük kapanış > EMA20): BTCkor×sıcak×G-EMA.
+- ÇEVİK-1 (15/120/kL2 kS3/ts24/tH480): net 5.624, 1.722 işlem, MaxDD 448, DD P98 335, 2024 ortası DD 127 (C 253), son 30 gün +87, ort. tutma 10,5 sa (C 19 sa), monkey ✓, 12 ay DD P95/P99 412/556, gecikme 1/2 sa −%13/−%17.
+- ÇEVİK-2 (kS4): net 5.391, 1.520 işlem, MaxDD 347, DD P98 245, 2024 DD 143, son 30 +61, 12 ay DD P99 490, 12 ay zarar %0,3, gecikme −%7/−%13; short ≈ 0.
+- Portföye 250 $ eklenince: tüm ZEC adayları portföy MaxDD'sini artırıyor (138 → C 149 / ÇEVİK-2 164 / ÇEVİK-1 169 / A 230); en az zarar veren AKRAN-C (zararlı dönemleri portföyle çakışmıyor).
