@@ -179,3 +179,11 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Risk azaltıcılar (oynaklık kapısı, azami tutma, günlük zarar, özsermaye kesicisi; 31): doğrulama ΔSC4 en iyi −0,45 (kâr ~0) → RET.
 - Bağımsız XMR-zayıf ZEC short hedge (432): seçimde 200 / doğrulamada 50 varyant ΔSC4 > 0, ama hepsinin kendi neti −900…−2.200 $, MaxDD 1.100+ → RET.
 - V2.9 nominal duyarlılığı ΔSC4 (seçim/doğrulama): 25 $ +0,22/−0,01 · 50 $ +0,45/−0,04 · 100 $ +0,56/−0,52 · 200 $ +0,29/−1,41.
+
+## 2026-11-25 gece — SUALTI (Ulcer) bölgeleri: ters balina, mikro formasyon, E0 anatomisi (hepsi RET)
+- V2.9: Ulcer %26,1 (nominal), zamanın %44'ü zirvenin 100 $+ altında.
+- Mikro formasyon (ikili tepe-dip, OBO/TOBO; 5/15 dk, pivot 2/3, tolerans 0,5/1 ATR; ters / flat / ikisi; 576): artı %0, medyan −3.020 $.
+- Ters balina (50k $ işlem akışı emilim / karşıt / takip; 216): artı %6, iki yarı %1. Top trader oranı (144): artı %6; en iyi +281 ama MaxDD 438.
+- Sualtı anatomisi: büyük çukurları E0 (64 saat tutan, en öncelikli) açıyor: 2026-02/03 −311, 2025-01/02 −138, 2024-04/07 −126, 2021 −150/−141.
+- Düşüş trendinde long yasağı (16): hepsi kötü (7.600–8.150). Zararda zaman kesici (E0 / tümü; 40): IS iyileşen 0.
+- E0 tam motor: tutma 960/1920/2880 → 6.825/7.332/8.613; stop 14/20/40×ATR → 8.268/8.312/8.732; E0 kapalı → 4.234 (E0 kârın 6.200 $'ı). Mevcut ayar (3840 / 28×ATR) yerel en iyi.
