@@ -109,3 +109,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - TV V2.6 yakın pencere: 4.203 $ / MaxDD 517 / PF 1,367 (V2.3: 4.365 / 401) → pompa motoru TV'de de bedelli.
 - Yürüyen seçim (kurallar yalnız geçmişten, 3–6 ay blok): yakın pencere 1.766–2.654 $ (baz 4.034), MaxDD 713–891 → RET.
 - Kritik: yürüyen seçimde 2022 +82 / 2023 −255 (baz 2.184 / 140 seçim içi). Gerçek OOS kanıt = 2024–2026 (baz seçimi 2021–2023): +3.923 $ ≈ 1.350 $/yıl.
+
+## 2026-11-25 — Zarar tavanı + ters manevra (V2.6 tabanı)
+- Tavan %3/5/7/10: net 7.111/8.037/8.353/8.361 (baz 8.389), MaxDD 549/536/453/413 (baz 386), en kötü işlem −3/−5/−7/−10 % (baz −24,6 %).
+- Manevra (tavan stopunda ters yön): hep/trend 4s-24s/momentum 1s → manevra işlemleri −600…−3.300 $ (sistem ortalamaya dönüşçü) → RET. Yalnız "oy" (bir motor ters yönü istiyorsa) +100…+215 $, 47–120 işlem, MaxDD +80 → eşik geçmedi.
+- V2.7 = tavan %10 (risk talebi; net −%0,3, MaxDD +27).

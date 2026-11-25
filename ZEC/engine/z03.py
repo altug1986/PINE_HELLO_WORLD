@@ -614,3 +614,77 @@ def simN7(o, h, l, c, atr, AL, AS, EL, ES, TS, TH, spk, blkN, mPers, byp):
                     break
         eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
     return eq, T[:nt]
+
+
+
+@njit(cache=True)
+def simN8(o, h, l, c, atr, AL, AS, EL, ES, TS, TH, spk, blkN, mPers, byp, cap, rev, FL, FS):
+    """[simN8] simN7 + ZARAR TAVANI: stop mesafesi = min(TS×ATR, cap×giriş). rev=1 ise tavan stopunda FL/FS izin veriyorsa
+    aynı fiyattan TERS yöne MANEVRA (sahip = satır 0, boş satır; yalnız stop/süre ile çıkar).
+    [simN7] simN6 + byp[k]=True olan motorlar (olay motorları, ör. POMPA) oybirliği/kalıcılık şartı olmadan girer.
+    [simN6] simN3 + ÇARPIŞMA GİRİŞ KURALI: girişte hiçbir motor ters yön istememeli (oybirliği) ve bu durum mPers bar sürmeli.
+    [simN3] simN2 + süre dolunca aynı yönü isteyen herhangi bir motor pozisyonu DEVRALIR (kapat-aynı yöne yeniden aç yok).
+    [simN2] simN + giriş kuralı: daha öncelikli motor ters yön istiyorsa alt motor GİREMEZ (giriş-çıkış zinciri biter).
+    N motor öncelik sırasıyla (0 en yüksek), tek 500 $ birim. Pozisyon sahibi k iken daha öncelikli j aynı yönü isterse devralır,
+    ters isterse kapanır ve j girer. Boşta: en öncelikli izinli motor girer. T[:,7] = sahip motor."""
+    K, n = AL.shape; eq = np.zeros(n); real = 0.0; pos = 0; own = -1; ep = 0.0; q = 0.0; stop = 0.0; ei = 0; ti = 0; mae = 0.0; noS = -1; ae = 0.0
+    T = np.zeros((n // 2 + 10, 8)); nt = 0; w = np.zeros(K, np.int64); runD = 0; runN = 0
+    for i in range(1, n):
+        if pos != 0:
+            mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+            if (pos == 1 and l[i] <= stop) or (pos == -1 and h[i] >= stop):
+                xp = (min(o[i], stop) - TICK) if pos == 1 else (max(o[i], stop) + TICK)
+                pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+                T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+                op = pos; pos = 0; own = -1
+                if rev and cap > 0.0 and ((op == 1 and FS[i]) or (op == -1 and FL[i])):
+                    pos = -op; own = 0; ep = xp; q = CAP / ep; ei = i; ti = i; mae = 0.0; stop = ep - pos * cap * ep
+        if spk[i]:
+            noS = i + blkN
+        for k in range(K):
+            w[k] = 1 if AL[k, i] else (-1 if (AS[k, i] and i > noS) else 0)
+        aL_ = False; aS_ = False
+        for kk in range(K):
+            if w[kk] == 1:
+                aL_ = True
+            elif w[kk] == -1:
+                aS_ = True
+        Dn = 0 if (aL_ and aS_) else (1 if aL_ else (-1 if aS_ else 0))
+        if Dn != 0 and Dn == runD:
+            runN += 1
+        else:
+            runD = Dn; runN = 1 if Dn != 0 else 0
+        guard = pos == -1 and spk[i]
+        if pos != 0 and not guard:
+            for j in range(own):
+                if w[j] == pos:
+                    own = j; ti = i; stop = ep - pos * (min(TS[j] * ae, cap * ep) if cap > 0.0 else TS[j] * ae)
+                    break
+        ex = False; blk = 0
+        if pos != 0 and not guard and i - ti >= TH[own]:
+            for kk in range(K):
+                if w[kk] == pos:
+                    own = kk; ti = i; stop = ep - pos * (min(TS[kk] * ae, cap * ep) if cap > 0.0 else TS[kk] * ae)
+                    break
+        if pos != 0:
+            tout = i - ti >= TH[own]
+            opp = False
+            for j in range(own + 1):
+                if w[j] != 0 and w[j] != pos:
+                    opp = True
+            ex = guard or opp or tout
+            blk = pos if (tout and w[own] == pos) else 0
+        if ex:
+            xp = c[i] - TICK * pos; pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+            T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+            pos = 0; own = -1
+        if pos != 0 and w[own] == pos:
+            ti = i
+        if pos == 0 and not np.isnan(atr[i]):
+            for k in range(K):
+                ok = byp[k] or (runD == w[k] and runN >= mPers)
+                if ok and w[k] != 0 and w[k] != blk and ((w[k] == 1 and EL[k, i]) or (w[k] == -1 and ES[k, i])):
+                    pos = w[k]; own = k; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; ti = i; mae = 0.0; ae = atr[i]; stop = ep - pos * (min(TS[k] * ae, cap * ep) if cap > 0.0 else TS[k] * ae)
+                    break
+        eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
+    return eq, T[:nt]
