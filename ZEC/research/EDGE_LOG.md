@@ -143,3 +143,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - V2.7 ile tek birim (trend öncelikli): 8.042 (−%3,8), MaxDD 413 — trend +4.465 getirirken orkestradan ~4.800 eksiltiyor → RET.
 - Trend en alt öncelik: tasarım hatası (her barda yeniden giriş çırpınması) → geçersiz.
 - Trend durumu yalnız short vetosu: kâr%15 → 8.516 (+%1,9), MaxDD 457, ikinci yarı 4.071, son 300 g 1.083; kâr%25 → 9.036 (+%8,1) ama MaxDD 791 → eşik/kırmızı çizgi geçmedi.
+
+## 2026-11-25 — PEPE V11.7 mimarisi → ZEC 5m (ERR taşınabilirlik)
+- Port doğrulama (PEPE/port/pepeport.py): PEPE'de TV V11.7 1.753 işlem / 9.763 $ ↔ port 1.731 / 9.616 $ (−%1,5), giriş eşleşmesi %96,1.
+- ZEC 5m, PEPE ayarları değişmeden: 2.636 işlem, net +190 $, PF 1,01, MaxDD 1.650, aylık pozitif %54 → ERR ≈ 0 (RET).
+- ZEC/PEPE 5 dk oynaklık oranı 0,92 (benzer). Eşikler × 0,69 / 0,92 / 1,16: −947 / +621 / −1.567 $ → sorun oynaklık değil, ZEC'te 5 dk momentum sürekliliği yok (ortalamaya dönüşçü).
