@@ -42,3 +42,43 @@ def sim7(o, h, l, c, atr, aL, aS, ats, atH, bL, bts, btrl, btH, spk, blkN):
             pk = max(pk, c[i]); stop = max(stop, pk - btrl * atr[i])
         eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
     return eq, T[:nt]
+
+
+@njit(cache=True)
+def sim8(o, h, l, c, atr, aL, aS, ats, atH, spk, blkN, upX, dnX, lockK, keep):
+    """R3 + sıçrama bekçisi + SIÇRAMA KÂR KİLİDİ: açık long'da upX (lehe sıçrama) olursa kilit açılır; kilitliyken
+    stop = max(stop, tepe − lockK·ATR, giriş + keep·(tepe − giriş)). Short için ayna (dnX). Kayıt: [.., mfe, kilit]."""
+    n = len(c); eq = np.zeros(n); real = 0.0; pos = 0; ep = 0.0; q = 0.0; stop = 0.0; ei = 0; mae = 0.0; mfe = 0.0; pk = 0.0; noS = -1; lk = False
+    T = np.zeros((n // 2 + 10, 10)); nt = 0
+    for i in range(1, n):
+        if pos != 0:
+            mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep); mfe = max(mfe, (h[i] - ep) / ep if pos == 1 else (ep - l[i]) / ep)
+            if (pos == 1 and l[i] <= stop) or (pos == -1 and h[i] >= stop):
+                xp = (min(o[i], stop) - TICK) if pos == 1 else (max(o[i], stop) + TICK)
+                pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+                T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = 0; T[nt, 8] = mfe; T[nt, 9] = 1 if lk else 0; nt += 1
+                pos = 0
+        if spk[i]:
+            noS = i + blkN
+        wA = 1 if aL[i] else (-1 if (aS[i] and i > noS) else 0)
+        guard = pos == -1 and spk[i]
+        tout = pos != 0 and i - ei >= atH
+        ex = pos != 0 and (guard or (wA != 0 and wA != pos) or tout)
+        blk = pos if (tout and wA == pos) else 0
+        if ex:
+            xp = c[i] - TICK * pos; pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+            T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = 1 if guard else 0; T[nt, 8] = mfe; T[nt, 9] = 1 if lk else 0; nt += 1
+            pos = 0
+        if pos == 0 and wA != 0 and wA != blk and not np.isnan(atr[i]):
+            pos = wA; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; mae = 0.0; mfe = 0.0; stop = ep - pos * ats * atr[i]; pk = c[i]; lk = False
+        if pos != 0:
+            pk = max(pk, c[i]) if pos == 1 else min(pk, c[i])
+            if (pos == 1 and upX[i]) or (pos == -1 and dnX[i]):
+                lk = True
+            if lk and (pk - ep) * pos > 0:
+                if pos == 1:
+                    stop = max(stop, max(pk - lockK * atr[i], ep + keep * (pk - ep)))
+                else:
+                    stop = min(stop, min(pk + lockK * atr[i], ep - keep * (ep - pk)))
+        eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
+    return eq, T[:nt]
