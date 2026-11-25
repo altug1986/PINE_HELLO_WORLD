@@ -90,3 +90,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - 8.000 üstü + iki yarı pozitif: 5 ayar. SEÇİLEN X1 (A×G×XMR, 25 bps / 8 sa ufuk / kL2 kS3 / SL 32 ATR / 16 sa): net 8.096, 1.799 işlem, MaxDD 432, DD P95/P99 252/328, Calmar 3,18, monkey ✓, MC P5 5.286, 12 ay DD P95/P99 504/665, stres 6.693, gecikme 1/2 sa 7.164/7.418, short +1.759. Kasım −67.
 - Kasım'da kazanan en iyi aday H1 (A×G, 10/480/3/3/24/960): net 7.923, Kasım +162, ama MaxDD 635 ve 1 sa gecikmede −%23.
 - Ekim seviyesine Kasım için ZEC'in 200 $ nominalle Kasım'da ~+470 yapması gerekir (500 $'da ~+1.175) → ulaşılamaz; zorlamak tarih hedefli aşırı uyum.
+
+### 2026-11-25 — ORKESTRA: tek 500 $ birimde öncelikli çoklu motor (TV'de hesaplanabilen veri + basis için spot vekili)
+- TV export (V1.1, 2023-02-06→): 3.251 $, motorla giriş eşleşmesi %85, TV motordan %12 yüksek. Tam model (9.128) aynı pencerede 4.187.
+- Motor sırası: B1 (fiyat+OI+basis, 25/480, kL2 kS2, dikkat+fitil, ts28/3.840) > S1 (fiyat+OI 10/120 k2/1 fitil, ts28/480) > S2 (+basis 25/120 k2/1, ts28/960) > S3 (geniş fiyat seti 25/240 k2/2 fitil, ts28/480). Boşta en öncelikli izinli motor girer; daha öncelikli motor aynı yönü isterse devralır, tersini isterse kapatır.
+- ORKESTRA-4: net 8.740 · 2.557 işlem · PF 1,52 · MaxDD 391 · DD P95/P99 220/314 · Sharpe 2,42 · Calmar 3,79 · ilk/ikinci yarı 4.421/4.318 · TV penceresi 4.267 (tam modelden yüksek) · monkey ✓ · MC P5 5.457 · 12 ay DD P95/P99 619/784 · stres 6.763.
+- Zayıf yanlar: 2023 −67; akran verisi 1–2 saat gecikmede −%29 (saat sınırı zamanlamasına duyarlı); basis TV'de spot ile yaklaşık.
+- 5. motor 9.014'e çıkarıyor ama yalnız ~20 işlem açıyor → gürültü, alınmadı.

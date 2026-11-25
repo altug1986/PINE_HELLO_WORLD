@@ -153,3 +153,97 @@ def sim11(o, h, l, c, atr, aL, aS, eL, eS, ats, atH, spk, blkN):
             pos = wA; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; ti = i; mae = 0.0; stop = ep - pos * ats * atr[i]
         eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
     return eq, T[:nt]
+
+
+@njit(cache=True)
+def sim12(o, h, l, c, atr, aL1, aS1, eL1, eS1, ts1, tH1, aL2, aS2, eL2, eS2, ts2, tH2, spk, blkN):
+    """İki motor, tek 500 $ birim: ANA motor (1) öncelikli; ana boştayken YEDEK motor (2) işlem açar.
+    Yedek pozisyondayken ana aynı yönü isterse devralır (pozisyon sürer, stop ana genişliğine), ters isterse kapatıp ana girer.
+    T[:,7] = sahibi (1/2)."""
+    n = len(c); eq = np.zeros(n); real = 0.0; pos = 0; own = 0; ep = 0.0; q = 0.0; stop = 0.0; ei = 0; ti = 0; mae = 0.0; noS = -1; ae = 0.0
+    T = np.zeros((n // 2 + 10, 8)); nt = 0
+    for i in range(1, n):
+        if pos != 0:
+            mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+            if (pos == 1 and l[i] <= stop) or (pos == -1 and h[i] >= stop):
+                xp = (min(o[i], stop) - TICK) if pos == 1 else (max(o[i], stop) + TICK)
+                pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+                T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+                pos = 0; own = 0
+        if spk[i]:
+            noS = i + blkN
+        w1 = 1 if aL1[i] else (-1 if (aS1[i] and i > noS) else 0)
+        w2 = 1 if aL2[i] else (-1 if (aS2[i] and i > noS) else 0)
+        guard = pos == -1 and spk[i]
+        ex = False; blk = 0
+        if pos != 0 and own == 2 and w1 == pos and not guard:
+            own = 1; ti = i; stop = ep - pos * ts1 * ae
+        if pos != 0 and own == 1:
+            tout = i - ti >= tH1
+            ex = guard or (w1 != 0 and w1 != pos) or tout
+            blk = pos if (tout and w1 == pos) else 0
+        elif pos != 0 and own == 2:
+            tout = i - ti >= tH2
+            ex = guard or (w1 != 0 and w1 != pos) or (w2 != 0 and w2 != pos) or tout
+            blk = pos if (tout and w2 == pos) else 0
+        if ex:
+            xp = c[i] - TICK * pos; pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+            T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+            pos = 0; own = 0
+        if pos != 0 and ((own == 1 and w1 == pos) or (own == 2 and w2 == pos)):
+            ti = i
+        if pos == 0 and not np.isnan(atr[i]):
+            if w1 != 0 and w1 != blk and ((w1 == 1 and eL1[i]) or (w1 == -1 and eS1[i])):
+                pos = w1; own = 1; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; ti = i; mae = 0.0; ae = atr[i]; stop = ep - pos * ts1 * ae
+            elif w2 != 0 and w2 != blk and ((w2 == 1 and eL2[i]) or (w2 == -1 and eS2[i])):
+                pos = w2; own = 2; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; ti = i; mae = 0.0; ae = atr[i]; stop = ep - pos * ts2 * ae
+        eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
+    return eq, T[:nt]
+
+
+@njit(cache=True)
+def simN(o, h, l, c, atr, AL, AS, EL, ES, TS, TH, spk, blkN):
+    """N motor öncelik sırasıyla (0 en yüksek), tek 500 $ birim. Pozisyon sahibi k iken daha öncelikli j aynı yönü isterse devralır,
+    ters isterse kapanır ve j girer. Boşta: en öncelikli izinli motor girer. T[:,7] = sahip motor."""
+    K, n = AL.shape; eq = np.zeros(n); real = 0.0; pos = 0; own = -1; ep = 0.0; q = 0.0; stop = 0.0; ei = 0; ti = 0; mae = 0.0; noS = -1; ae = 0.0
+    T = np.zeros((n // 2 + 10, 8)); nt = 0; w = np.zeros(K, np.int64)
+    for i in range(1, n):
+        if pos != 0:
+            mae = max(mae, (ep - l[i]) / ep if pos == 1 else (h[i] - ep) / ep)
+            if (pos == 1 and l[i] <= stop) or (pos == -1 and h[i] >= stop):
+                xp = (min(o[i], stop) - TICK) if pos == 1 else (max(o[i], stop) + TICK)
+                pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+                T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+                pos = 0; own = -1
+        if spk[i]:
+            noS = i + blkN
+        for k in range(K):
+            w[k] = 1 if AL[k, i] else (-1 if (AS[k, i] and i > noS) else 0)
+        guard = pos == -1 and spk[i]
+        if pos != 0 and not guard:
+            for j in range(own):
+                if w[j] == pos:
+                    own = j; ti = i; stop = ep - pos * TS[j] * ae
+                    break
+        ex = False; blk = 0
+        if pos != 0:
+            tout = i - ti >= TH[own]
+            opp = False
+            for j in range(own + 1):
+                if w[j] != 0 and w[j] != pos:
+                    opp = True
+            ex = guard or opp or tout
+            blk = pos if (tout and w[own] == pos) else 0
+        if ex:
+            xp = c[i] - TICK * pos; pnl = q * (xp - ep) * pos - FEE * q * (ep + xp); real += pnl
+            T[nt, 0] = ei; T[nt, 1] = i; T[nt, 2] = pos; T[nt, 3] = ep; T[nt, 4] = xp; T[nt, 5] = pnl; T[nt, 6] = mae; T[nt, 7] = own; nt += 1
+            pos = 0; own = -1
+        if pos != 0 and w[own] == pos:
+            ti = i
+        if pos == 0 and not np.isnan(atr[i]):
+            for k in range(K):
+                if w[k] != 0 and w[k] != blk and ((w[k] == 1 and EL[k, i]) or (w[k] == -1 and ES[k, i])):
+                    pos = w[k]; own = k; ep = c[i] + TICK * pos; q = CAP / ep; ei = i; ti = i; mae = 0.0; ae = atr[i]; stop = ep - pos * TS[k] * ae
+                    break
+        eq[i] = real + (q * (c[i] - ep) * pos - FEE * q * ep if pos != 0 else 0.0)
+    return eq, T[:nt]
