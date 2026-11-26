@@ -281,3 +281,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - V3.3 (motor, tüm geçmiş): 2.502 işlem, kazanma %48,8. Süreye göre: ≤5 dk %48,5 (−277 $) · 5–30 dk %30,9 (−679) · 30 dk–2 s %42,7 (−580) · 2–8 s %44,6 (−1.691) · >8 s %55,0 (+13.500, ort. kazanç 34 $). Kâr şişman sağ kuyruktan.
 - Kâr kilidi (MFE ≥ a → stop giriş + b) ve sabit kâr al: %55'i ilk geçen MFE ≥%3 → +%0,2: %57,6, net 10.273 → 6.015 (−%41), MaxDD 384 → 405; sabit kâr al %3: %57,8, net 2.792 (−%73); MFE ≥%1 → +%0,5: %71,5, net 2.253 (−%78).
 - Daha önce: ters oy teyidi / en az tutma süresi (−525…−1.312), PF/ADX/mikro giriş filtreleri hep eksi.
+
+## 2026-11-26 — Hedef 12.000 (taban V3.3 10.273 $) — ulaşılamadı
+- 4 s çöküş tepkisi yan motoru (4 s ≤ −%4…−%10 / z ≤ −2,5…−3,5; 12/24/48 s; stop %5/8/12; FLAT / FLAT+short): 144 varyant, iki yarıda artı 1; en iyi +205 (tekil), FLAT modu medyan −62…−1.269. V3.3'ün karşıt motorları bu tepkileri zaten alıyor.
+- Motor × yön katkısı (gölge): E0 long +5.504 · E0 short +986 · E1 long +774 · E1 short +730 · E3 long +546 · POMPA +164 · E2 ±70–96 · E3 short +14.
+- Ablasyon: her motor-yön kapatma eksi (−92…−3.987). E3 long kapalı: −92 $ ama MaxDD 384 → 356, DD P99 306 → 275, Ulcer 23,7 → 20,6, Calmar 4,5 → 4,8 (yarılar −465/+373).
+- TH ızgarası (×0,5 / ×2): E0 1920 −1.918, 7680 −212; E1 240 −740, 960 −6; E2 ±26; E3 240 −46, 960 +27 → yerel tepe.
