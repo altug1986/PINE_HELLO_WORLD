@@ -1,0 +1,21 @@
+{
+ "tarih": "2026-11-26 08:47 TR",
+ "perp_tam_son": "2026-11-24 23:59 UTC",
+ "perp_kaynak": "data.binance.vision günlük arşiv (klines, index, premium, metrics, bookDepth, aggTrades) — 25 Kas arşivi henüz yayımlanmadı (404)",
+ "vekil": "data/ZECUSDT_MASTER_1m_PROXY_SPOT_20261125_20261126.parquet: 2026-11-25 00:00 → 2026-11-26 05:47 UTC, ZEC SPOT 1m (data-api.binance.vision); index/basis/premium/OI/metrics/defter NaN, balina 0; btc_close spot; xmr_close NaN",
+ "fapi": "GitHub runner 451 (bölge engeli) — perp canlı API erişilemez",
+ "denetim_23Kas_arsiv_vs_master": {
+  "close": "100%",
+  "volume": "100%",
+  "oi_zec": "100% (ilk 4 dk NaN: önceki gün yok)",
+  "tt_pos_ls": "100%",
+  "book_m1": "100%",
+  "wh_buy_q10k": "100%",
+  "basis_bps": "fark 0 bps",
+  "premium_bps": "100%",
+  "btc_close": "100%",
+  "xmr_close": "100%"
+ },
+ "akran": "peer R_ dosyaları: BTC/BAT/1000PEPE 24 Kas perp + 25–26 Kas spot (PEPE ×1000); XMR sadece 24 Kas; ETH 1 s 24 Kas perp + 25–26 spot",
+ "motor_notu": "ztf.build mid sabit (ZEC_MID_END=2026-11-23 23:59): kural tabloları veri uzasa da değişmez"
+}

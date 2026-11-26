@@ -58,7 +58,8 @@ def build(tf, src='/home/claude/master/', thr=25.0):
     V['whaleT'] = np.sign(wn) * (np.abs(wn) > 0.05)
     adx = htf(B, tf, '4h', lambda H: regime.dmi(H)[0]); pdi = htf(B, tf, '4h', lambda H: regime.dmi(H)[1]); mdi = htf(B, tf, '4h', lambda H: regime.dmi(H)[2])
     RG = np.where(adx >= 20, np.sign(pdi - mdi), np.where(adx < 20, 0, 9))
-    mid = np.searchsorted(B.index.values, (B.index[0] + (B.index[-1] - B.index[0]) / 2).to_datetime64())
+    import os; E_ = pd.Timestamp(os.environ.get('ZEC_MID_END', '2026-11-23 23:59'))   # kural tablosu ilk yarısı veri uzasa da sabit kalır (Pine tabloları bununla seçildi)
+    mid = np.searchsorted(B.index.values, (B.index[0] + (min(B.index[-1], E_) - B.index[0]) / 2).to_datetime64())
     f240 = np.r_[c[S(240):] / c[:-S(240)] - 1, np.full(S(240), np.nan)] * 1e4
     order = ['ttposK4h', 'ttposK1g', 'whaleT', 'X17_basis', 'P09_spike', 'R21_glb', 'P07_rsi', 'P08_zema', 'P10_bb', 'P12_oiLiq', 'P11_oiCont', 'P15_resid', 'R18_whale', 'R19_book', 'P04_htf4h']
     L = np.zeros(n); Sh = np.zeros(n); rules = []

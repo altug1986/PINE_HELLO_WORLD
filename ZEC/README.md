@@ -1,5 +1,7 @@
 # CYBORG | ZEC 2M — sistem organizasyonu
 
+> **Son durum 2026-11-26:** aktif sistem **ZEC 1M ORKESTRA V3.5** (`pine/CYBORG_ZEC_1M_ORKESTRA_V3.5.pine`, REV-17) — motor 11.127,6 $ (2021 → 24 Kas), TV derin export bekliyor. Veri perp 24 Kas 23:59'a kadar, 25–26 Kas spot vekil. Devir notu: [`research/SYNC_2026-11-26.md`](research/SYNC_2026-11-26.md), deneme kaydı: `research/EDGE_LOG.md`.
+
 `BINANCE:ZECUSDT.P` · 2 dk · iki yön · sabit 500 $ birim (initial_capital 500, strategy.cash 500, komisyon %0,04, kayma 1 tick, process_orders_on_close, pyramiding 0, margin 0).
 Durum: **V0.2 Pine hazır, TV export bekliyor** (2026-11-24). Sayılar araştırma motoru (`engine/z01.py`), TV'de doğrulanmadı.
 

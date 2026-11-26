@@ -334,3 +334,7 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
   ADX≥20: %2,5 −65 · **%3 +160 (yarılar +131/+29)** · %3,5 +135 · %4 +83 · %5 +21. ADX 15/25 benzer (%3: +160/+118). MaxDD 379,8 aynı, DD99 304,3 aynı. 16 erken çıkış.
 - Yeniden long + 20 dk ADX (+DI > −DI): en iyi toplam +216 (ikinci yarı +12, 7 yeniden giriş); ADX eşiğine göre medyan 20: −3 · 25: +20 · 30: −52 → sağlam değil.
 - Kapı +%6 (+661) karşılanmıyor; POMPA tüm geçmişte 77 işlem.
+
+## 2026-11-26 08:47 — Senkron (veri 24 Kas perp + 25–26 Kas spot vekil) → `research/SYNC_2026-11-26.md`
+- Eski koşularda veri sonundaki açık orkestra işlemi kayda geçmiyordu: V3.5 23 Kas 23:59 düzeltilmiş 11.118,9 (eski 11.023,4). Sürüm farkları geçerli.
+- V3.5 24 Kas 23:59: 11.127,6 · son 30 gün +332,8 / MaxDD 94,7. TV export 9 → 26 Kas ısınmasız (başlangıç 9 Kas); perp döneminde 14–16 ve 10 bire bir, ilk gerçek uyumsuzluk #17 short çıkışı.
