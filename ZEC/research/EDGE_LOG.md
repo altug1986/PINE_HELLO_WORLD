@@ -316,3 +316,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Maymun 150'şer (yön / zaman p): 180/40 0,020/0,000 · 180/38 0,040/0,000 · 180/37 0,020/0,000 · **190/38 0,013/0,000** · 190/37 0,027/0,000.
 - V3.5: 11.023,4 (+750, +%7,3) · yarılar +299/+452 · MaxDD 379,8 · DD99 304,3 · Ulcer 22,8 · Calmar 4,90 · yıllar 2021 +271 / 2022 −21 / 2023 +82 / 2024 +58 / 2025 +150 / 2026 +211.
 - Pine: ZEC/pine/CYBORG_ZEC_1M_ORKESTRA_V3.5.pine (REV-17). TV'de doğrulanmadı.
+
+## 2026-11-26 — POMPA long stop tabanı (25 Kas 18:01 → 18:16 −19,56 $ / −%3,9, 8×ATR stopu) — DEĞİŞİKLİK YOK
+- Baz V3.5 motor 11.023,4 (regresyon ✓). POMPA 77 işlem +164 $, %49 kazanma.
+- Sabit taban (stop mesafesi en az %F): %3 −3 · %4 −51 · %5 −72 · %6 −101 · %8 −159 (POMPA kendi +31'e kadar artıyor ama zincir kaybediyor).
+- Akıllı taban (sadece fiyat 24/48 s zirvesinin ≥ X% altındayken, %5/%6): 20 varyantın hiçbiri pozitif değil (0 … −60).
+- 25 Kas vakası 1 dk veride yok (veri 23 Kas 23:59'da bitiyor). Spot 1 s: 15:00 UTC dip 676,8 > %5 taban 672,1 → tutardı, sonra 741–753. Tek örnek.
