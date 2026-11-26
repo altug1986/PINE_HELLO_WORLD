@@ -328,3 +328,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Yeniden giriş (POMPA long stop sonrası pencere 60/240/720 dk içinde kapanış ≥ giriş fiyatı veya stop fiyatı +%0,5…3 → long, tutma 240/480 dk, stop %3/5; V3.3 girerse devreder):
   medyan Δnet −43 … −141. En iyi +148 (8×ATR, +%3 tetik, 720 dk pencere, 240 dk tutma, %5 stop) ama 6 yeniden giriş, ikinci yarı −14.
 - İki yarı pozitif + MaxDD ≤ baz: 0/305. Kapı (+%6) imkânsız: POMPA tüm geçmişte 77 işlem / +164 $.
+
+## 2026-11-26 — POMPA çıkışına 20 dk ADX (250 + 15 varyant) — BAZI GEÇEMEDİ (+%1,5)
+- Erken çıkış: POMPA long girişten ≥ %3 aşağıda VE kapanmış 20 dk barda ADX(14) ≥ 20 VE −DI > +DI → kapanışta çık (8×ATR stop yerinde kalır).
+  ADX≥20: %2,5 −65 · **%3 +160 (yarılar +131/+29)** · %3,5 +135 · %4 +83 · %5 +21. ADX 15/25 benzer (%3: +160/+118). MaxDD 379,8 aynı, DD99 304,3 aynı. 16 erken çıkış.
+- Yeniden long + 20 dk ADX (+DI > −DI): en iyi toplam +216 (ikinci yarı +12, 7 yeniden giriş); ADX eşiğine göre medyan 20: −3 · 25: +20 · 30: −52 → sağlam değil.
+- Kapı +%6 (+661) karşılanmıyor; POMPA tüm geçmişte 77 işlem.
