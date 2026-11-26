@@ -1,0 +1,43 @@
+name: eth-5m
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/eth_5m.yml']
+permissions:
+  contents: write
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: ETHUSDT perp 5m (aylık + günlük arşiv)
+        run: |
+          mkdir -p data
+          python3 - <<'PY'
+          import io, zipfile, urllib.request, gzip, csv, datetime as dt, concurrent.futures as cf
+          V='https://data.binance.vision/data/futures/um/'; S='ETHUSDT'; M=[]; d=dt.date(2021,1,1)
+          while d<=dt.date(2026,10,1): M.append(d.strftime('%Y-%m')); d=(d.replace(day=28)+dt.timedelta(days=4)).replace(day=1)
+          U=[f'{V}monthly/klines/{S}/5m/{S}-5m-{m}.zip' for m in M]+[f'{V}daily/klines/{S}/5m/{S}-5m-{(dt.date(2026,11,1)+dt.timedelta(days=i)).isoformat()}.zip' for i in range(25)]
+          def g(u):
+            try: z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(u,timeout=90).read())); return [l.split(',') for l in z.read(z.namelist()[0]).decode().splitlines() if l[:1].isdigit()], None
+            except Exception as e: return [], f'YOK {u} {e}'
+          R=[]; bad=[]
+          with cf.ThreadPoolExecutor(8) as ex:
+            for r,b in ex.map(g,U):
+              R+=r
+              if b: bad.append(b)
+          R=sorted({int(r[0]):r for r in R}.values(), key=lambda r:int(r[0])); last=dt.datetime.utcfromtimestamp(int(R[-1][0])/1000)
+          fn=f'data/ETHUSDT_5m_UTC_20210101_THROUGH_{last:%Y%m%d}.csv.gz'
+          with gzip.open(fn,'wt',newline='') as f:
+            w=csv.writer(f); w.writerow(['time','open','high','low','close','volume','quote_volume','trades','taker_buy_base','taker_buy_quote'])
+            for r in R: w.writerow([r[0],r[1],r[2],r[3],r[4],r[5],r[7],r[8],r[9],r[10]])
+          open('data/ETHUSDT_5m_LOG.txt','w').write(f'{fn} {len(R)} satır\n'+'\n'.join(bad)+'\n'); print(fn,len(R),len(bad))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/ETHUSDT_5m_*
+          git commit -m "data: ETHUSDT perp 5m 2021-01 → 2026-11" || echo nothing
+          for i in 1 2 3 4 5; do git pull --rebase origin main && git push && break; sleep 20; done
