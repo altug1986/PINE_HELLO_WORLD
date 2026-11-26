@@ -338,3 +338,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 ## 2026-11-26 08:47 — Senkron (veri 24 Kas perp + 25–26 Kas spot vekil) → `research/SYNC_2026-11-26.md`
 - Eski koşularda veri sonundaki açık orkestra işlemi kayda geçmiyordu: V3.5 23 Kas 23:59 düzeltilmiş 11.118,9 (eski 11.023,4). Sürüm farkları geçerli.
 - V3.5 24 Kas 23:59: 11.127,6 · son 30 gün +332,8 / MaxDD 94,7. TV export 9 → 26 Kas ısınmasız (başlangıç 9 Kas); perp döneminde 14–16 ve 10 bire bir, ilk gerçek uyumsuzluk #17 short çıkışı.
+
+## 2026-11-26 — 5 günlük kâr kontrolü + 2–3 saat bekleme (72 varyant, V3.5 üstüne, uzatılmış veri) — DEĞİŞİKLİK YOK
+- Kural: her 4/5/6 günde son dönemin KAPANMIŞ işlem neti < eşik (0 / −10 / −25 / −50 $) → 2 veya 3 saat bekle; mod: hemen kapat / mevcut işlem kapanınca / sadece yeni giriş yok.
+- Mod medyanları: hemen kapat −226 · işlem kapanınca −9 · yeni giriş yok +10. En iyi 5 gün / −25 $ / 3 saat / işlem kapanınca +101 (+%0,9), yarılar +54/+47, MaxDD 380,6 (baz 379,8).
+- Aynı ayar 4 günde ve 6 günde negatif medyan (−39 / −16) → sadece 5 güne özgü. Kapı (+%6) çok uzak; performans ortalamaya dönüyor (playbook ders 1).
