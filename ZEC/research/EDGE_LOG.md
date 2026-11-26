@@ -261,3 +261,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - TV: 18:01 short→long 707,45 (sıçrama mumu), 18:16 EXIT-ALL 680,33 (−%3,9, 15 bar) → POMPA imzası (10 dk ≥%3 + hacim 3×, oybirliği/3 bar şartsız, 8×ATR stop). 20:17 short 716,48 = karşıt oylar (orkestra).
 - Zincir yeniden koşuldu (orkestra → V2.9 TERS → V3.0 tasfiye dönüş): POMPA 131 işlem −94 $. POMPA yok: 10.012 $ (+120), yarılar +200/−79, MaxDD 397 → 388, DD P99 321 → 314, Ulcer 25,0 → 23,9, Calmar 4,23 → 4,38. Teyitli POMPA (3/5/10 bar): −198…−339 $.
 - Karar: V3.1 = V3.0 − POMPA (davranış düzeltmesi; %6 eşiği altında, risk hepsi iyi). pine/CYBORG_ZEC_1M_ORKESTRA_V3.1.pine (REV-13).
+
+## 2026-11-26 — Akıllı POMPA (BTC teyitli) → V3.2 · TV teknik derece klonu (RET)
+- Netten (Binance spot data-api, 1 s, 21–26 Kas): master ile 49 saat örtüşme, kapanış farkı ort %0,05. 25 Kas (UTC): 14:00 dip 674,6; 15:01 long 707,45 (BTC saat +%0,2); 17:17 short 716,48 (saat 695→741, BTC +%1,7); 00:xx tepe ~789 (short %10 tavan).
+- TV teknik derece klonu (15 MA + 11 osilatör), 1 s kapanmış bar: 25 Kas 20:00 TR (short öncesi son saat) ZEC −0,40 Sat, BTC −0,40 Sat; 21:00'den itibaren ikisi Al (0,16–0,38). 23 Kas 17:00 TR ZEC Al 0,47, BTC Güçlü Al 0,65.
+- Akıllı POMPA (POMPA + BTC 10 dk ≥ +%0,5): 10.317 $ (V3.1 +305, V3.0 +425), POMPA 77 işlem +164 $, MaxDD 388, DD P99 306, Ulcer 23,6, Calmar 4,51; yarılar −90/+395; komşu %0,3 +170, %1 +41; 60 dk şartı eksi. 23 Kas 16:56→18:26 +34,7 $ korunur.
+- Derece klonu üstüne (taban V3.2): ZEC/BTC ≥ eşik → short vazgeç (A) / long aç (B), simetrik, ölü kedi %10/%15 bağlamı: 162 varyant, iki yarıda artı 0; en iyi +11 $ (Güçlü Al şartı, 25 Kas'ta tetiklenmez); 25 Kas'ı düzeltecek Al/Al + ölü kedi %15: −214…−243 $, MaxDD 390–428; long aç hepsi ≤ −211 $.
+- Karar: V3.2 = V3.0 POMPA'sı + BTC 10 dk şartı (istenen davranış; %6 altı, risk iyi). Dosya: pine/CYBORG_ZEC_1M_ORKESTRA_V3.2.pine (REV-14), engine/tvrating.py, akilli*.py, data_net/*.csv.
