@@ -296,3 +296,11 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - 1 s uyum şartı: MaxDD 385.8 ama net +366 (+%3.6).
 - Katkı yıllara dağınık değil: 2021 +228, 2026 +168 (ST ADX35).
 - 54 varyantlık ikinci grid: kapı (≥+%6, MaxDD ≤ baz, iki yarı +) geçen 0.
+
+## 2026-11-26 — Ara zaman dilimleri (1/2/3/4/6/8/12 s) → V3.4 BAZI GEÇTİ (araştırma motoru)
+- Grid: 7 zaman dilimi × EMA10/30, EMA20/50, SuperTrend × ADX 30/35/40, stop %5 (63 varyant). Medyan Δnet: 1 s +27 · 2 s +244 · **3 s +665** · 4 s +554 · 6 s +306 · 8 s +242 · 12 s +41.
+- Kapı geçen 3/63: üçü de 3 s ADX≥40 (EMA10/30 +677, EMA20/50 +676, SuperTrend +651) → sinyal tipinden bağımsız.
+- V3.4 = V3.3 + 3 s EMA10/30, ADX≥40, stop %5 (devir stopu devir fiyatından): 10.951,3 (+678, +%6,6) · yarılar +373/+306 · MaxDD 374,0 · DD99 291,6 · Ulcer 23,1 · Calmar 4,97.
+- Sağlamlık: ADX 36/38/40 geçer, 42/45 geçmez; stop %3–8 geçer; 210 dk +575 (MaxDD 376), 240 dk +735 (MaxDD 406 ✗), 150 dk +402; 1 bar ek gecikme +740; maymun 40/40 (P95 +453).
+- Stop sonrası yeniden girişi engellemek −100 (stop toplam ~20 kez).
+- Pine: ZEC/pine/CYBORG_ZEC_1M_ORKESTRA_V3.4.pine (REV-16). TV'de doğrulanmadı.
