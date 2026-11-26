@@ -242,3 +242,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Testler (taban V3.0 motor 9.892 $): fiyat ADX vetosu (15 dk/1 s/4 s, 20/25/30) en iyi −2.309 $; balina pozisyon ADX vetosu ve fiyat+balina birlikte en iyi −557 $; ATR ≥ 1,5/2/3× iken BTC yönüne ters giriş vetosu en iyi −637 $; fiyat+balina ADX aynı yönde FLAT iken giriş en iyi +324 $ (MaxDD 397 → 430, kapı yok); trende ters girişe %3/5/7 tavan en iyi +59 $ (2. yarı −107).
 - Not: balina (top trader pozisyon) verisi 2023'ten tam, 2021–22 seyrek; TV'de 2026-04'ten önce yok.
 - Karar: V3.0 kalıyor. Dosya: engine/adxfilt*.py; research/ADX_BALINA_BTC_FILTRE.csv, TRENDE_TERS_ISLEM_KARNESI.csv, TV_ORKESTRA_V3.0_2023-2026.xlsx.
+
+## 2026-11-26 — Kanayan bölgeler önce, sonra genel: fiyat hareketi yönü + piyasa yapıcının likidite öbeğine sürmesi (RET, en yakın +%4,5)
+- Kanama haritası (V3.0 motor, Pine sırası, 9.892 $): 30 dk MTM'de ≥ 50 $ düşüşlü 111 dönem, toplam 14.295 $ (ilk yarı 7.277 / ikinci 7.018), ort 8,6 gün; %77'si ZEC düşerken; ort net pozisyon +0,46 (long ağırlıklı).
+- Model: yön = salınım yapısı (YT+YD / AT+AD, pivot 30/60/120/240 dk); öbek = süpürülmemiş salınım tepeleri/dipleri (%1 bant küme sayısı); kural: öbek ≤ X% yakında ve yapı o yönde → ters girişi atla / eldekini kes / süpürülünce katıl.
+- 1) Sadece ilk yarı kanamasına göre seçim: veto+kes %3: ilk yarı kanama −6.496 (%89), ikinci −6.534 (%93) ama genel net −10.371 $ (sistem işlem yapmıyor), MaxDD 665.
+- 2) Şart "ilk yarı genel net düşmesin": en iyi 2 s salınım + %1 içinde süpürülmemiş öbek + yapı o yönde → ters giriş vetosu: kanama −226/−255, genel +449 $ (+%4,5), yarılar +186/+263, MaxDD 397 → 383, Ulcer 24,97 → 24,1, Calmar 4,23 → 4,6, DD P99 321 → 324. Plato dar: 16 hücreden 4'ü artı (+76…+449), 30/60 dk ve %2–3 mesafe eksi. Ertele-katıl en iyi +143; kes+süpürülünce dön hepsi eksi.
+- Karar: %6 kapısı geçilmedi; V3.0 kalıyor. Dosya: engine/kanama.py, kanama2.py; research/KANAMA_BOLGE_LIKIDITE_OBEK.csv.
