@@ -1,0 +1,37 @@
+YOK https://data.binance.vision/data/futures/um/daily/klines/ZECUSDT/1m/ZECUSDT-1m-2026-11-25.zip (HTTP Error 404: Not Found)
+ZECUSDT perp 1m 2880
+YOK https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/1m/BTCUSDT-1m-2026-11-25.zip (HTTP Error 404: Not Found)
+BTCUSDT perp 1m 2880
+YOK https://data.binance.vision/data/futures/um/daily/klines/XMRUSDT/1m/XMRUSDT-1m-2026-11-25.zip (HTTP Error 404: Not Found)
+XMRUSDT perp 1m 2880
+YOK https://data.binance.vision/data/futures/um/daily/klines/BATUSDT/1m/BATUSDT-1m-2026-11-25.zip (HTTP Error 404: Not Found)
+BATUSDT perp 1m 2880
+YOK https://data.binance.vision/data/futures/um/daily/klines/1000PEPEUSDT/1m/1000PEPEUSDT-1m-2026-11-25.zip (HTTP Error 404: Not Found)
+1000PEPEUSDT perp 1m 2880
+YOK https://data.binance.vision/data/futures/um/daily/klines/ETHUSDT/1m/ETHUSDT-1m-2026-11-25.zip (HTTP Error 404: Not Found)
+ETHUSDT perp 1m 2880
+YOK https://data.binance.vision/data/futures/um/daily/indexPriceKlines/ZECUSDT/1m/ZECUSDT-1m-2026-11-25.zip (HTTP Error 404: Not Found)
+ZEC INDEX 2880
+YOK https://data.binance.vision/data/futures/um/daily/premiumIndexKlines/ZECUSDT/1m/ZECUSDT-1m-2026-11-25.zip (HTTP Error 404: Not Found)
+ZEC PREMIUM 2880
+YOK https://data.binance.vision/data/futures/um/daily/metrics/ZECUSDT/ZECUSDT-metrics-2026-11-25.zip (HTTP Error 404: Not Found)
+ZECUSDT metrics 576
+YOK https://data.binance.vision/data/futures/um/daily/metrics/BTCUSDT/BTCUSDT-metrics-2026-11-25.zip (HTTP Error 404: Not Found)
+BTCUSDT metrics 576
+YOK https://data.binance.vision/data/futures/um/daily/metrics/XMRUSDT/XMRUSDT-metrics-2026-11-25.zip (HTTP Error 404: Not Found)
+XMRUSDT metrics 576
+YOK https://data.binance.vision/data/futures/um/daily/metrics/BATUSDT/BATUSDT-metrics-2026-11-25.zip (HTTP Error 404: Not Found)
+BATUSDT metrics 576
+YOK https://data.binance.vision/data/futures/um/daily/metrics/1000PEPEUSDT/1000PEPEUSDT-metrics-2026-11-25.zip (HTTP Error 404: Not Found)
+1000PEPEUSDT metrics 576
+ZEC spot 4320
+YOK https://data.binance.vision/data/futures/um/daily/bookDepth/ZECUSDT/ZECUSDT-bookDepth-2026-11-25.zip (HTTP Error 404: Not Found)
+bookDepth dakika 2880
+YOK https://data.binance.vision/data/futures/um/daily/aggTrades/ZECUSDT/ZECUSDT-aggTrades-2026-11-25.zip (HTTP Error 404: Not Found)
+whale dakika 2866
+ZECUSDT spot vekil 26 Kas 0 son - UTC
+BTCUSDT spot vekil 26 Kas 0 son - UTC
+BATUSDT spot vekil 26 Kas 0 son - UTC
+PEPEUSDT spot vekil 26 Kas 0 son - UTC
+ETHUSDT spot vekil 26 Kas 0 son - UTC
+fapi erişilemez (HTTP Error 451: )
