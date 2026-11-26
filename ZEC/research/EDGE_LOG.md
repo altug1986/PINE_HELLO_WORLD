@@ -322,3 +322,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Sabit taban (stop mesafesi en az %F): %3 −3 · %4 −51 · %5 −72 · %6 −101 · %8 −159 (POMPA kendi +31'e kadar artıyor ama zincir kaybediyor).
 - Akıllı taban (sadece fiyat 24/48 s zirvesinin ≥ X% altındayken, %5/%6): 20 varyantın hiçbiri pozitif değil (0 … −60).
 - 25 Kas vakası 1 dk veride yok (veri 23 Kas 23:59'da bitiyor). Spot 1 s: 15:00 UTC dip 676,8 > %5 taban 672,1 → tutardı, sonra 741–753. Tek örnek.
+
+## 2026-11-26 — POMPA: daha erken çık + piyasa döndüyse tekrar long (305 varyant) — DEĞİŞİKLİK YOK
+- Sıkı stop tek başına (8×ATR yerine): 6× −142 · 5× −50 · 4× −64 · 3× −54 (3×'te MaxDD 392 ✗).
+- Yeniden giriş (POMPA long stop sonrası pencere 60/240/720 dk içinde kapanış ≥ giriş fiyatı veya stop fiyatı +%0,5…3 → long, tutma 240/480 dk, stop %3/5; V3.3 girerse devreder):
+  medyan Δnet −43 … −141. En iyi +148 (8×ATR, +%3 tetik, 720 dk pencere, 240 dk tutma, %5 stop) ama 6 yeniden giriş, ikinci yarı −14.
+- İki yarı pozitif + MaxDD ≤ baz: 0/305. Kapı (+%6) imkânsız: POMPA tüm geçmişte 77 işlem / +164 $.
