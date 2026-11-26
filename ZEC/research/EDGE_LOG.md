@@ -276,3 +276,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Short zarar tavanı (long %10): %7 −42 · %6 −128 · %5 −62 · %4 −43 (en kötü short −50,6 → −20,7, MaxDD 388 → 385) · %3,5 −290 · %3 −341 · %2,5 −461. İki yön %7 −202, %5 −557.
 - Karar: V3.3 = V3.2 + short tavanı %4 (kullanıcı isteği, maliyet −%0,4). pine/CYBORG_ZEC_1M_ORKESTRA_V3.3.pine (REV-15).
 - TV–motor eşleştirme (V3.2, 2023-02-03 → 2026-11-23): TV 1.497 giriş / motor 1.494; ±2 dk aynı yön eşleşme %75,5; net TV 5.495,5 / motor 5.366,1 (−%2,4). V3.3 motor aynı pencere 5.245,4 (V3.2'ye göre −121) → TV beklentisi ~5.375 $.
+
+## 2026-11-26 — Kazanma oranı > %55 isteği (RET: kârın %41–78'i gidiyor)
+- V3.3 (motor, tüm geçmiş): 2.502 işlem, kazanma %48,8. Süreye göre: ≤5 dk %48,5 (−277 $) · 5–30 dk %30,9 (−679) · 30 dk–2 s %42,7 (−580) · 2–8 s %44,6 (−1.691) · >8 s %55,0 (+13.500, ort. kazanç 34 $). Kâr şişman sağ kuyruktan.
+- Kâr kilidi (MFE ≥ a → stop giriş + b) ve sabit kâr al: %55'i ilk geçen MFE ≥%3 → +%0,2: %57,6, net 10.273 → 6.015 (−%41), MaxDD 384 → 405; sabit kâr al %3: %57,8, net 2.792 (−%73); MFE ≥%1 → +%0,5: %71,5, net 2.253 (−%78).
+- Daha önce: ters oy teyidi / en az tutma süresi (−525…−1.312), PF/ADX/mikro giriş filtreleri hep eksi.
