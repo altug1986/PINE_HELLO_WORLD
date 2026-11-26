@@ -287,3 +287,12 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Motor × yön katkısı (gölge): E0 long +5.504 · E0 short +986 · E1 long +774 · E1 short +730 · E3 long +546 · POMPA +164 · E2 ±70–96 · E3 short +14.
 - Ablasyon: her motor-yön kapatma eksi (−92…−3.987). E3 long kapalı: −92 $ ama MaxDD 384 → 356, DD P99 306 → 275, Ulcer 23,7 → 20,6, Calmar 4,5 → 4,8 (yarılar −465/+373).
 - TH ızgarası (×0,5 / ×2): E0 1920 −1.918, 7680 −212; E1 240 −740, 960 −6; E2 ±26; E3 240 −46, 960 +27 → yerel tepe.
+
+## 2026-11-26 — Üst zaman dilimli ek sistem (V3.3 FLAT iken, 4 s ADX eşikli) — BAZI GEÇEMEDİ
+- Mantık: V3.3 pozisyonsuzken ve 4 s ADX ≥ eşik → 4 s trend yönünde ek pozisyon, intrabar stop %3–5; V3.3 girince ek çıkar. Devrede kalma süresi ~%3.
+- Baz V3.3 motor: 10,273.1 / MaxDD 384.5 / DD99 305.8 / Calmar 4.53.
+- En iyi: 4 s EMA10/30, ADX≥35, stop %5: +560 (+%5.4), yarılar +291/+269, MaxDD 388.0 (+3.5), DD99 298.2, Calmar 4.70, Ulcer 23.3.
+- ADX≥40: +735 (+%7.2) ama MaxDD 406 → kırmızı çizgi. ADX 30/35/40 komşuları monoton değil (+554/+560/+735).
+- 1 s uyum şartı: MaxDD 385.8 ama net +366 (+%3.6).
+- Katkı yıllara dağınık değil: 2021 +228, 2026 +168 (ST ADX35).
+- 54 varyantlık ikinci grid: kapı (≥+%6, MaxDD ≤ baz, iki yarı +) geçen 0.
