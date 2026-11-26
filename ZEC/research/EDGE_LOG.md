@@ -310,3 +310,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Pozitif varyant oranı: ADX30 %97 · ADX35 %97 · ADX40 %90. Medyan Δnet bant: ≤60 dk +84…+178 · 130–180 +431…+622 · 190–240 +627…+760 · 250–360 +409…+581 · 370–480 +278…+343 · 490–720 +55…+186.
 - Plato 2,5–4 s; tek tepe değil. Bağlayıcı kısıt MaxDD (çoğu 386–410). Kapı geçen 3/216: 180, 190, 220 dk (hepsi ADX40). 150 dk ADX40 +609 / MaxDD 383 (eşiğe kıl payı).
 - En yüksek net: 200 dk ADX35 +861 (MaxDD 388 ✗), 230 dk ADX35 +822 (MaxDD 389 ✗). Karar: V3.4 (180 dk, ADX40) kalır.
+
+## 2026-11-26 — İnce tarama 150–280 dk × ADX 34–44 + maymun → V3.5 (190 dk, ADX≥38)
+- Kapı geçen 12/154; ada 180–190 dk × ADX 36–40 (+220 dk dağınık). 190/38 ada ortası, komşu kapı oranı 0,7.
+- Maymun 150'şer (yön / zaman p): 180/40 0,020/0,000 · 180/38 0,040/0,000 · 180/37 0,020/0,000 · **190/38 0,013/0,000** · 190/37 0,027/0,000.
+- V3.5: 11.023,4 (+750, +%7,3) · yarılar +299/+452 · MaxDD 379,8 · DD99 304,3 · Ulcer 22,8 · Calmar 4,90 · yıllar 2021 +271 / 2022 −21 / 2023 +82 / 2024 +58 / 2025 +150 / 2026 +211.
+- Pine: ZEC/pine/CYBORG_ZEC_1M_ORKESTRA_V3.5.pine (REV-17). TV'de doğrulanmadı.

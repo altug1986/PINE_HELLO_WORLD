@@ -1,0 +1,6 @@
+exec(open('/home/claude/zecwork/maske10.py').read().split("bn = B['net']; out = []")[0])
+S, A = mkm(190); e = comb3(o_, h_, l_, cc, 0.01, rp, rx, S, A, 38.0, 0.05)[0]; m = met(e, '')
+print({k: round(float(v), 1) for k, v in m.items() if k != 'v'})
+x = pd.Series(e - e0, ixh).resample('YE').last(); print('yıllık:', dict(zip(x.index.year, np.diff(np.r_[0, x.values]).round(0))))
+t23 = np.searchsorted(tms, 1675382400000); print(f'TV penceresi {e0[-1] - e0[t23]:.1f} → {e[-1] - e[t23]:.1f}')
+print(f'devrede %{((rp == 0) & (S != 0) & (A >= 38)).mean() * 100:.1f}')
