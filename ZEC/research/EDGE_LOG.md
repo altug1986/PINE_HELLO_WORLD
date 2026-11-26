@@ -304,3 +304,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Sağlamlık: ADX 36/38/40 geçer, 42/45 geçmez; stop %3–8 geçer; 210 dk +575 (MaxDD 376), 240 dk +735 (MaxDD 406 ✗), 150 dk +402; 1 bar ek gecikme +740; maymun 40/40 (P95 +453).
 - Stop sonrası yeniden girişi engellemek −100 (stop toplam ~20 kez).
 - Pine: ZEC/pine/CYBORG_ZEC_1M_ORKESTRA_V3.4.pine (REV-16). TV'de doğrulanmadı.
+
+## 2026-11-26 — Ek sistem zaman dilimi taraması 10→720 dk, 10 dk adım (EMA10/30, ADX 30/35/40, stop %5; 216 varyant)
+- Bölünmeyen dilimler TV gibi her UTC günü 00:00'dan başlar. 180 dk ADX40 = +678,2 (V3.4 regresyon ✓).
+- Pozitif varyant oranı: ADX30 %97 · ADX35 %97 · ADX40 %90. Medyan Δnet bant: ≤60 dk +84…+178 · 130–180 +431…+622 · 190–240 +627…+760 · 250–360 +409…+581 · 370–480 +278…+343 · 490–720 +55…+186.
+- Plato 2,5–4 s; tek tepe değil. Bağlayıcı kısıt MaxDD (çoğu 386–410). Kapı geçen 3/216: 180, 190, 220 dk (hepsi ADX40). 150 dk ADX40 +609 / MaxDD 383 (eşiğe kıl payı).
+- En yüksek net: 200 dk ADX35 +861 (MaxDD 388 ✗), 230 dk ADX35 +822 (MaxDD 389 ✗). Karar: V3.4 (180 dk, ADX40) kalır.
