@@ -29,9 +29,9 @@ YOK https://data.binance.vision/data/futures/um/daily/bookDepth/ZECUSDT/ZECUSDT-
 bookDepth dakika 2880
 YOK https://data.binance.vision/data/futures/um/daily/aggTrades/ZECUSDT/ZECUSDT-aggTrades-2026-11-25.zip (HTTP Error 404: Not Found)
 whale dakika 2866
-ZECUSDT spot vekil 26 Kas 0 son - UTC
-BTCUSDT spot vekil 26 Kas 0 son - UTC
-BATUSDT spot vekil 26 Kas 0 son - UTC
-PEPEUSDT spot vekil 26 Kas 0 son - UTC
-ETHUSDT spot vekil 26 Kas 0 son - UTC
+ZECUSDT spot vekil 26 Kas 1788 son 2026-11-26 05:47 UTC
+BTCUSDT spot vekil 26 Kas 1788 son 2026-11-26 05:47 UTC
+BATUSDT spot vekil 26 Kas 1788 son 2026-11-26 05:47 UTC
+PEPEUSDT spot vekil 26 Kas 1788 son 2026-11-26 05:47 UTC
+ETHUSDT spot vekil 26 Kas 1788 son 2026-11-26 05:47 UTC
 fapi erişilemez (HTTP Error 451: )
