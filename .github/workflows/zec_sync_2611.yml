@@ -1,0 +1,106 @@
+name: zec-sync-2611
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/zec_sync_2611.yml']
+permissions:
+  contents: write
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: '.github', sparse-checkout-cone-mode: false}
+      - name: data.binance.vision günlük arşiv (23–25 Kas) + 26 Kas spot vekil
+        run: |
+          mkdir -p data/sync2611; pip -q install pandas
+          python3 - <<'PY'
+          import io, zipfile, urllib.request, json, gzip, csv, time, datetime as dt, os, pandas as pd, numpy as np
+          O='data/sync2611/'; DAYS=['2026-11-23','2026-11-24','2026-11-25']; log=[]
+          def z(u):
+            try: zz=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(u,timeout=120).read())); return zz.read(zz.namelist()[0]).decode()
+            except Exception as e: log.append(f'YOK {u} ({e})'); return None
+          def rows(txt): return [l.split(',') for l in txt.splitlines() if l[:1].isdigit()] if txt else []
+          V='https://data.binance.vision/data/'
+          for sym in ['ZECUSDT','BTCUSDT','XMRUSDT','BATUSDT','1000PEPEUSDT','ETHUSDT']:
+            R=[]
+            for d in DAYS: R+=rows(z(f'{V}futures/um/daily/klines/{sym}/1m/{sym}-1m-{d}.zip'))
+            with gzip.open(f'{O}{sym}_PERP_1m_UTC_20261123_20261125.csv.gz','wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time','open','high','low','close','volume','close_time','quote_volume','trades','taker_buy_base','taker_buy_quote'])
+              for r in R: w.writerow(r[:11])
+            log.append(f'{sym} perp 1m {len(R)}')
+          for ep,nm in [('indexPriceKlines','INDEX'),('premiumIndexKlines','PREMIUM')]:
+            R=[]
+            for d in DAYS: R+=rows(z(f'{V}futures/um/daily/{ep}/ZECUSDT/1m/ZECUSDT-1m-{d}.zip'))
+            with gzip.open(f'{O}ZECUSDT_{nm}_1m_UTC_20261123_20261125.csv.gz','wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time','open','high','low','close'])
+              for r in R: w.writerow(r[:5])
+            log.append(f'ZEC {nm} {len(R)}')
+          for sym in ['ZECUSDT','BTCUSDT','XMRUSDT','BATUSDT','1000PEPEUSDT']:
+            L=[]
+            for d in DAYS:
+              t=z(f'{V}futures/um/daily/metrics/{sym}/{sym}-metrics-{d}.zip')
+              if t: L+=[l for l in t.splitlines()[1:] if l.strip()]
+            open(f'{O}{sym}_METRICS_5m_RAW_20261123_20261125.csv','w').write('create_time,symbol,sum_open_interest,sum_open_interest_value,count_toptrader_long_short_ratio,sum_toptrader_long_short_ratio,count_long_short_ratio,sum_taker_long_short_vol_ratio\n'+'\n'.join(L)+'\n')
+            log.append(f'{sym} metrics {len(L)}')
+          R=[]
+          for d in DAYS: R+=rows(z(f'{V}spot/daily/klines/ZECUSDT/1m/ZECUSDT-1m-{d}.zip'))
+          with gzip.open(f'{O}ZECUSDT_SPOT_1m_UTC_20261123_20261125.csv.gz','wt',newline='') as f:
+            w=csv.writer(f); w.writerow(['time','open','high','low','close','volume']); [w.writerow(r[:6]) for r in R]
+          log.append(f'ZEC spot {len(R)}')
+          LV=['-5','-4','-3','-2','-1','-0.2','0.2','1','2','3','4','5']; out={}
+          for d in DAYS:
+            t=z(f'{V}futures/um/daily/bookDepth/ZECUSDT/ZECUSDT-bookDepth-{d}.zip')
+            for l in (t or '').splitlines():
+              p=l.split(',')
+              if not p[0][:1].isdigit(): continue
+              s=dt.datetime.strptime(p[0][:19],'%Y-%m-%d %H:%M:%S').replace(tzinfo=dt.timezone.utc).timestamp(); lv='%g'%float(p[1]); mn=int(s//60)*60000
+              r=out.setdefault(mn,{})
+              if r.get('_s',0)<=s: r['_s']=s
+              r[(lv,s)]=p[3]
+          with gzip.open(f'{O}ZECUSDT_BOOKDEPTH_1m_UTC_20261123_20261125.csv.gz','wt',newline='') as f:
+            w=csv.writer(f); w.writerow(['time','snap_s']+['notional_'+('m' if lv[0]=='-' else 'p')+lv.lstrip('-').replace('.','') for lv in LV])
+            for mn in sorted(out): r=out[mn]; s=r['_s']; w.writerow([mn,int(s)]+[(str(round(float(r[(lv,s)]))) if (lv,s) in r else '') for lv in LV])
+          log.append(f'bookDepth dakika {len(out)}')
+          TH=[10_000,50_000,200_000,1_000_000]; parts=[]
+          for d in DAYS:
+            u=f'{V}futures/um/daily/aggTrades/ZECUSDT/ZECUSDT-aggTrades-{d}.zip'
+            try:
+              fn='/tmp/a.zip'; urllib.request.urlretrieve(u,fn); zz=zipfile.ZipFile(fn); nm=zz.namelist()[0]
+              with zz.open(nm) as f: head=f.readline().decode()
+              hdr=0 if not head[:1].isdigit() else None
+              with zz.open(nm) as f:
+                for ch in pd.read_csv(f,header=hdr,usecols=[1,2,5,6],chunksize=4_000_000):
+                  ch.columns=['price','qty','ms','bm']; ch['q']=ch.price*ch.qty; ch['sell']=ch.bm.astype(str).str.lower().eq('true')
+                  o=ch.groupby(['ms','sell'],sort=False).q.sum().reset_index(); parts.append(o[o.q>=TH[0]])
+            except Exception as e: log.append(f'YOK {u} ({e})')
+          o=pd.concat(parts).groupby(['ms','sell']).q.sum().reset_index(); o['time']=o.ms//60000*60000; res=[]
+          for side,s in [('buy',False),('sell',True)]:
+            x=o[o.sell==s]; g=x.groupby('time'); cols={f'{side}_max':g.q.max()}
+            for t in TH:
+              y=x[x.q>=t].groupby('time').q; k=f'{t//1000}k'; cols[f'{side}_n{k}']=y.size(); cols[f'{side}_q{k}']=y.sum()
+            res.append(pd.DataFrame(cols))
+          r=pd.concat(res,axis=1).fillna(0).sort_index().round(0).astype('int64'); r.index=r.index.astype('int64')
+          r.to_csv(f'{O}ZECUSDT_WHALE_PRINTS_1m_UTC_20261123_20261125.csv.gz',index_label='time',compression='gzip'); log.append(f'whale dakika {len(r)}')
+          t0=1796083200000; now=int(time.time()*1000)//60000*60000-60000
+          for sym in ['ZECUSDT','BTCUSDT','BATUSDT','PEPEUSDT','ETHUSDT']:
+            R=[]; s=t0
+            while s<now:
+              try: k=json.loads(urllib.request.urlopen(f'https://data-api.binance.vision/api/v3/klines?symbol={sym}&interval=1m&startTime={s}&limit=1000',timeout=30).read())
+              except Exception as e: log.append(f'spot {sym} HATA {e}'); break
+              if not k: break
+              R+=[x for x in k if x[0]<=now]; s=k[-1][0]+60000
+            with gzip.open(f'{O}{sym}_SPOT_PROXY_1m_UTC_20261126.csv.gz','wt',newline='') as f:
+              w=csv.writer(f); w.writerow(['time','open','high','low','close','volume','close_time','quote_volume','trades','taker_buy_base','taker_buy_quote']); [w.writerow(x[:11]) for x in R]
+            log.append(f'{sym} spot vekil 26 Kas {len(R)} son {time.strftime("%Y-%m-%d %H:%M",time.gmtime(R[-1][0]/1000)) if R else "-"} UTC')
+          try: urllib.request.urlopen('https://fapi.binance.com/fapi/v1/time',timeout=15).read(); log.append('fapi ERİŞİLEBİLİR')
+          except Exception as e: log.append(f'fapi erişilemez ({e})')
+          open(O+'SYNC_LOG.txt','w').write('\n'.join(log)+'\n'); print('\n'.join(log))
+          PY
+      - name: commit
+        run: |
+          git config user.name "ohlc-bot"; git config user.email "ohlc-bot@users.noreply.github.com"
+          git add --sparse data/sync2611
+          git commit -m "data: ZEC senkron 23–25 Kas (perp 1m, index, premium, metrics, bookDepth, balina) + 26 Kas spot vekil" || echo nothing
+          for i in 1 2 3 4 5; do git pull --rebase origin main && git push && break; sleep 20; done
