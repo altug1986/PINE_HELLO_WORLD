@@ -1,0 +1,2 @@
+data/ETHUSDT_5m_UTC_20210101_THROUGH_20261124.csv.gz 620352 satır
+YOK https://data.binance.vision/data/futures/um/daily/klines/ETHUSDT/5m/ETHUSDT-5m-2026-11-25.zip HTTP Error 404: Not Found
