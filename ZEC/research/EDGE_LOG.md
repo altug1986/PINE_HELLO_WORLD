@@ -256,3 +256,8 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Test (taban V3.0 9.892 $): kırılım + itki (%3/5/8) + salınım yapısı, zirveden 6/10/15×ATR iz, %10 tavan, 24 s; üstün (V3.0'ı ezer) / sadece ters girişi engelle; iki yön / sadece long: 216 varyant, iki yarıda artı 0, en iyi −48 $. Sadece long + üst rejim (4 s ara trend / günlük EMA20 / yok): 162 varyant, iki yarıda artı 0, en iyi −68 $.
 - En nötr davranış seçeneği: güçlü yukarı itki + yapı yukarıyken short açma (2 s kırılım, itki ≥%8, 6×ATR iz): −48 $ (−%0,5), MaxDD 397 → 392. Kâr katmıyor; yalnız davranış tercihi olarak eklenebilir.
 - Karar: V3.0 kalıyor. Dosya: engine/yontakip*.py; research/YON_TAKIP_PRICE_ACTION.csv.
+
+## 2026-11-26 — 25 Kas 18:01 tepe alışı = POMPA → V3.1 (POMPA kaldırıldı)
+- TV: 18:01 short→long 707,45 (sıçrama mumu), 18:16 EXIT-ALL 680,33 (−%3,9, 15 bar) → POMPA imzası (10 dk ≥%3 + hacim 3×, oybirliği/3 bar şartsız, 8×ATR stop). 20:17 short 716,48 = karşıt oylar (orkestra).
+- Zincir yeniden koşuldu (orkestra → V2.9 TERS → V3.0 tasfiye dönüş): POMPA 131 işlem −94 $. POMPA yok: 10.012 $ (+120), yarılar +200/−79, MaxDD 397 → 388, DD P99 321 → 314, Ulcer 25,0 → 23,9, Calmar 4,23 → 4,38. Teyitli POMPA (3/5/10 bar): −198…−339 $.
+- Karar: V3.1 = V3.0 − POMPA (davranış düzeltmesi; %6 eşiği altında, risk hepsi iyi). pine/CYBORG_ZEC_1M_ORKESTRA_V3.1.pine (REV-13).
