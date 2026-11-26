@@ -350,3 +350,9 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - 336 varyantlık ilk tarama: medyan set ZEC −821 · BTC −2.375 · XMR −2.182 · ETH −2.885 · 4'lü −1.742; kâr kilidi −4.622; saat çarpanı kötüleştiriyor. Kapı 0.
 - En iyi: ZEC 5 dk ADX < 14 (geç giriş yok) +232 (+%2,1), MaxDD 379,8 → 350,5, DD99 281,5; ZEC < 14 VE 4'lü ort. ADX < 20: +278 (+%2,5), MaxDD 365.
 - Zaman dilimi kaydırma testi başarısız: aynı kural ZEC 3 dk −222, 10 dk −171, 15 dk −23 (ADX < 14) → 5 dk'ya özgü, aşırı uyum riski. Kapı (+%6) karşılanmıyor.
+
+## 2026-11-26 — Kuyruk zarar serisi kesici + sağlıklı dönüş (264 varyant, V3.5 işlemleri üstünde) — DEĞİŞİKLİK YOK, 0 pozitif
+- Durdur: art arda 2/3/4 zarar & seri ≥ 0–100 $ veya 24 s ≤ −50/−75/−100 $; dönüş: 6/12/24 s sonra yeni sinyal, gölge ilk kazanç, gölge 2 kazanç, gölge net ≥ +25/+50 $ (126): en iyi −38, medyan −1.402…−2.234.
+- Savunma: seri sonrası sıkı stop %1–3, kazançla normal (90): en iyi −492; sıkı stop ZEC'te kazananları kesiyor.
+- Yön bazlı: sadece zarar eden yönü kapat (48): en iyi −1.052.
+- Neden: seri sonrası işlemler ortalamanın ÜSTÜNDE — 2 zarar sonrası ort. +5,22 $ (n 707), 3 → +5,84 (n 388), 4 → +5,52 (n 220); genel ort. +4,21. Kesici en iyi işlemleri atlıyor (4× & ≥75 $ kesmesinin atladığı 33 işlem +1.112 $).
