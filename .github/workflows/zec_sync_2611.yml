@@ -83,7 +83,7 @@ jobs:
             res.append(pd.DataFrame(cols))
           r=pd.concat(res,axis=1).fillna(0).sort_index().round(0).astype('int64'); r.index=r.index.astype('int64')
           r.to_csv(f'{O}ZECUSDT_WHALE_PRINTS_1m_UTC_20261123_20261125.csv.gz',index_label='time',compression='gzip'); log.append(f'whale dakika {len(r)}')
-          t0=1795564800000   # 2026-11-25 00:00 UTC; now=int(time.time()*1000)//60000*60000-60000
+          t0=1795564800000; now=int(time.time()*1000)//60000*60000-60000   # t0 = 2026-11-25 00:00 UTC
           for sym in ['ZECUSDT','BTCUSDT','BATUSDT','PEPEUSDT','ETHUSDT']:
             R=[]; s=t0
             while s<now:
