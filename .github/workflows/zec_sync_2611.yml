@@ -83,7 +83,7 @@ jobs:
             res.append(pd.DataFrame(cols))
           r=pd.concat(res,axis=1).fillna(0).sort_index().round(0).astype('int64'); r.index=r.index.astype('int64')
           r.to_csv(f'{O}ZECUSDT_WHALE_PRINTS_1m_UTC_20261123_20261125.csv.gz',index_label='time',compression='gzip'); log.append(f'whale dakika {len(r)}')
-          t0=1796083200000; now=int(time.time()*1000)//60000*60000-60000
+          t0=1795564800000   # 2026-11-25 00:00 UTC; now=int(time.time()*1000)//60000*60000-60000
           for sym in ['ZECUSDT','BTCUSDT','BATUSDT','PEPEUSDT','ETHUSDT']:
             R=[]; s=t0
             while s<now:
@@ -91,7 +91,7 @@ jobs:
               except Exception as e: log.append(f'spot {sym} HATA {e}'); break
               if not k: break
               R+=[x for x in k if x[0]<=now]; s=k[-1][0]+60000
-            with gzip.open(f'{O}{sym}_SPOT_PROXY_1m_UTC_20261126.csv.gz','wt',newline='') as f:
+            with gzip.open(f'{O}{sym}_SPOT_PROXY_1m_UTC_20261125_20261126.csv.gz','wt',newline='') as f:
               w=csv.writer(f); w.writerow(['time','open','high','low','close','volume','close_time','quote_volume','trades','taker_buy_base','taker_buy_quote']); [w.writerow(x[:11]) for x in R]
             log.append(f'{sym} spot vekil 26 Kas {len(R)} son {time.strftime("%Y-%m-%d %H:%M",time.gmtime(R[-1][0]/1000)) if R else "-"} UTC')
           try: urllib.request.urlopen('https://fapi.binance.com/fapi/v1/time',timeout=15).read(); log.append('fapi ERİŞİLEBİLİR')
