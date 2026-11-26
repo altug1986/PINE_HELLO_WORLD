@@ -249,3 +249,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - 1) Sadece ilk yarı kanamasına göre seçim: veto+kes %3: ilk yarı kanama −6.496 (%89), ikinci −6.534 (%93) ama genel net −10.371 $ (sistem işlem yapmıyor), MaxDD 665.
 - 2) Şart "ilk yarı genel net düşmesin": en iyi 2 s salınım + %1 içinde süpürülmemiş öbek + yapı o yönde → ters giriş vetosu: kanama −226/−255, genel +449 $ (+%4,5), yarılar +186/+263, MaxDD 397 → 383, Ulcer 24,97 → 24,1, Calmar 4,23 → 4,6, DD P99 321 → 324. Plato dar: 16 hücreden 4'ü artı (+76…+449), 30/60 dk ve %2–3 mesafe eksi. Ertele-katıl en iyi +143; kes+süpürülünce dön hepsi eksi.
 - Karar: %6 kapısı geçilmedi; V3.0 kalıyor. Dosya: engine/kanama.py, kanama2.py; research/KANAMA_BOLGE_LIKIDITE_OBEK.csv.
+
+## 2026-11-26 — Genel eğilim yerine fiyat hareketi yönünü yakala ve sür (RET)
+- Görsel (canlı 25 Kas): 18:16 long stop 680,33 → FLAT; ralli başlarken pozisyon yok; 20:17 genel eğilim (karşıt oylar) ralli ortasında 716,48 short; fiyat ~790'a; tepede EXIT-ALL (%10 tavan ≈ 788, ~−50 $). 1 dk veri 11-23'te bittiği için bar bar üretilemedi.
+- Olay (240/480 dk kırılım + itki): AŞAĞI itki sonrası short iki yarıda da zararlı (4 s ≥%8: 4 s −50/−119 bps, 24 s −153/−324); YUKARI itki sonrası long 1. yarı eksi (4 s −35), 2. yarı artı (4 s +70, 24 s +231).
+- Test (taban V3.0 9.892 $): kırılım + itki (%3/5/8) + salınım yapısı, zirveden 6/10/15×ATR iz, %10 tavan, 24 s; üstün (V3.0'ı ezer) / sadece ters girişi engelle; iki yön / sadece long: 216 varyant, iki yarıda artı 0, en iyi −48 $. Sadece long + üst rejim (4 s ara trend / günlük EMA20 / yok): 162 varyant, iki yarıda artı 0, en iyi −68 $.
+- En nötr davranış seçeneği: güçlü yukarı itki + yapı yukarıyken short açma (2 s kırılım, itki ≥%8, 6×ATR iz): −48 $ (−%0,5), MaxDD 397 → 392. Kâr katmıyor; yalnız davranış tercihi olarak eklenebilir.
+- Karar: V3.0 kalıyor. Dosya: engine/yontakip*.py; research/YON_TAKIP_PRICE_ACTION.csv.
