@@ -268,3 +268,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Akıllı POMPA (POMPA + BTC 10 dk ≥ +%0,5): 10.317 $ (V3.1 +305, V3.0 +425), POMPA 77 işlem +164 $, MaxDD 388, DD P99 306, Ulcer 23,6, Calmar 4,51; yarılar −90/+395; komşu %0,3 +170, %1 +41; 60 dk şartı eksi. 23 Kas 16:56→18:26 +34,7 $ korunur.
 - Derece klonu üstüne (taban V3.2): ZEC/BTC ≥ eşik → short vazgeç (A) / long aç (B), simetrik, ölü kedi %10/%15 bağlamı: 162 varyant, iki yarıda artı 0; en iyi +11 $ (Güçlü Al şartı, 25 Kas'ta tetiklenmez); 25 Kas'ı düzeltecek Al/Al + ölü kedi %15: −214…−243 $, MaxDD 390–428; long aç hepsi ≤ −211 $.
 - Karar: V3.2 = V3.0 POMPA'sı + BTC 10 dk şartı (istenen davranış; %6 altı, risk iyi). Dosya: pine/CYBORG_ZEC_1M_ORKESTRA_V3.2.pine (REV-14), engine/tvrating.py, akilli*.py, data_net/*.csv.
+
+## 2026-11-26 — TV V3.2 · neden long'tan çıkıyor · short kuyruğu (V3.3)
+- TV V3.2 (2023-02-03 → 2026-11-25): 1.501 işlem, net 5.446,5 $, PF 1,502, kapanış MaxDD 366 (V3.0 TV 5.284 / 1,475 / 394). 25 Kas 18:01 long (−19,56) V3.2'de de var → o an BTC 10 dk ≥ +%0,5 şartı sağlanmış; akıllı POMPA o işlemi elemedi.
+- Long çıkış nedenleri (V3.2 gölge): üst/eş motorun tek bar ters oyu 633 adet +8.574 $ (çıkış sonrası fiyat 4 s −22 / 12 s −50 bps → doğru), sahip motor süresi 115 adet +4.228 $ (sonra +26/+45 bps), stop 201 adet −5.841 $. 23 Kas 18:26 çıkışı: POMPA (en düşük öncelik) long'u üst motorun short oyu kapattı, 18:28 short +73,65 $.
+- Çıkış düzeltmeleri: ters oy 2/3/5/10 bar teyit −525…−1.312 $; ortak ters yön −65 $ (MaxDD +35); kârdaki long süreyle çıkmaz −54 $ (yarılar −167/+113).
+- Short zarar tavanı (long %10): %7 −42 · %6 −128 · %5 −62 · %4 −43 (en kötü short −50,6 → −20,7, MaxDD 388 → 385) · %3,5 −290 · %3 −341 · %2,5 −461. İki yön %7 −202, %5 −557.
+- Karar: V3.3 = V3.2 + short tavanı %4 (kullanıcı isteği, maliyet −%0,4). pine/CYBORG_ZEC_1M_ORKESTRA_V3.3.pine (REV-15).
