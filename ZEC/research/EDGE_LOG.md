@@ -343,3 +343,10 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Kural: her 4/5/6 günde son dönemin KAPANMIŞ işlem neti < eşik (0 / −10 / −25 / −50 $) → 2 veya 3 saat bekle; mod: hemen kapat / mevcut işlem kapanınca / sadece yeni giriş yok.
 - Mod medyanları: hemen kapat −226 · işlem kapanınca −9 · yeni giriş yok +10. En iyi 5 gün / −25 $ / 3 saat / işlem kapanınca +101 (+%0,9), yarılar +54/+47, MaxDD 380,6 (baz 379,8).
 - Aynı ayar 4 günde ve 6 günde negatif medyan (−39 / −16) → sadece 5 güne özgü. Kapı (+%6) çok uzak; performans ortalamaya dönüyor (playbook ders 1).
+
+## 2026-11-26 — 4 parite 5 dk birleşik ADX (ZEC, BTC, XMR, ETH) × saat çarpanı → dinlenme bölgesi (518 varyant) — DEĞİŞİKLİK YOK
+- ETH 5 dk perp indirildi: `data/ETHUSDT_5m_UTC_20210101_THROUGH_20261124.csv.gz` (620.352 satır).
+- Dinlenme = skor (ADX ort./maks. × IS saat kazanma çarpanı) < IS yüzdeliği; mod: yeni giriş yok / +kârı kilitle / geç giriş yok.
+- 336 varyantlık ilk tarama: medyan set ZEC −821 · BTC −2.375 · XMR −2.182 · ETH −2.885 · 4'lü −1.742; kâr kilidi −4.622; saat çarpanı kötüleştiriyor. Kapı 0.
+- En iyi: ZEC 5 dk ADX < 14 (geç giriş yok) +232 (+%2,1), MaxDD 379,8 → 350,5, DD99 281,5; ZEC < 14 VE 4'lü ort. ADX < 20: +278 (+%2,5), MaxDD 365.
+- Zaman dilimi kaydırma testi başarısız: aynı kural ZEC 3 dk −222, 10 dk −171, 15 dk −23 (ADX < 14) → 5 dk'ya özgü, aşırı uyum riski. Kapı (+%6) karşılanmıyor.
