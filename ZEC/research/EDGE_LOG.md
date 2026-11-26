@@ -275,3 +275,4 @@ Kolonlar: tarih · aile · tanım · n (bağımsız olay) · net bps h=6/30/60 d
 - Çıkış düzeltmeleri: ters oy 2/3/5/10 bar teyit −525…−1.312 $; ortak ters yön −65 $ (MaxDD +35); kârdaki long süreyle çıkmaz −54 $ (yarılar −167/+113).
 - Short zarar tavanı (long %10): %7 −42 · %6 −128 · %5 −62 · %4 −43 (en kötü short −50,6 → −20,7, MaxDD 388 → 385) · %3,5 −290 · %3 −341 · %2,5 −461. İki yön %7 −202, %5 −557.
 - Karar: V3.3 = V3.2 + short tavanı %4 (kullanıcı isteği, maliyet −%0,4). pine/CYBORG_ZEC_1M_ORKESTRA_V3.3.pine (REV-15).
+- TV–motor eşleştirme (V3.2, 2023-02-03 → 2026-11-23): TV 1.497 giriş / motor 1.494; ±2 dk aynı yön eşleşme %75,5; net TV 5.495,5 / motor 5.366,1 (−%2,4). V3.3 motor aynı pencere 5.245,4 (V3.2'ye göre −121) → TV beklentisi ~5.375 $.
